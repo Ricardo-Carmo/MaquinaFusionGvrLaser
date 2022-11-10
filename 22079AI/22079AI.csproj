@@ -1,0 +1,439 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{5427E4C0-C7E7-4E2D-935F-D71B453F2E12}</ProjectGuid>
+    <OutputType>WinExe</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>_22079AI</RootNamespace>
+    <AssemblyName>22079AI</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile />
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
+    <IsWebBootstrapper>false</IsWebBootstrapper>
+    <PublishUrl>publish\</PublishUrl>
+    <Install>true</Install>
+    <InstallFrom>Disk</InstallFrom>
+    <UpdateEnabled>false</UpdateEnabled>
+    <UpdateMode>Foreground</UpdateMode>
+    <UpdateInterval>7</UpdateInterval>
+    <UpdateIntervalUnits>Days</UpdateIntervalUnits>
+    <UpdatePeriodically>false</UpdatePeriodically>
+    <UpdateRequired>false</UpdateRequired>
+    <MapFileExtensions>true</MapFileExtensions>
+    <ApplicationRevision>0</ApplicationRevision>
+    <ApplicationVersion>1.0.0.%2a</ApplicationVersion>
+    <UseApplicationTrust>false</UseApplicationTrust>
+    <BootstrapperEnabled>true</BootstrapperEnabled>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x86'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x86\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x86'">
+    <OutputPath>bin\x86\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>STREAK_LOGO_GERAL_V0_SMALL.ico</ApplicationIcon>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <PlatformTarget>x86</PlatformTarget>
+    <OutputPath>bin\x64\Debug\</OutputPath>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <Optimize>false</Optimize>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <PlatformTarget>x64</PlatformTarget>
+    <OutputPath>bin\x64\Release\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup>
+    <StartupObject>_22079AI.Program</StartupObject>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="halcondotnet, Version=20.11.3.0, Culture=neutral, PublicKeyToken=4973bed59ddbf2b8, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\Program Files\MVTec\HALCON-20.11-Steady\bin\dotnet35\halcondotnet.dll</HintPath>
+    </Reference>
+    <Reference Include="hdevenginedotnet, Version=20.11.3.0, Culture=neutral, PublicKeyToken=4973bed59ddbf2b8, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\Program Files\MVTec\HALCON-20.11-Steady\bin\dotnet35\hdevenginedotnet.dll</HintPath>
+    </Reference>
+    <Reference Include="MetroFramework">
+      <HintPath>bin\Debug\MetroFramework.dll</HintPath>
+    </Reference>
+    <Reference Include="MfgControl.AdvancedHMI.Controls">
+      <HintPath>C:\Users\OpenCV\Desktop\15002AI\15002AI\bin\Debug\MfgControl.AdvancedHMI.Controls.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.VisualBasic" />
+    <Reference Include="Microsoft.VisualBasic.PowerPacks, Version=9.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL" />
+    <Reference Include="PolyMonControls, Version=1.1.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>bin\Debug\PolyMonControls.dll</HintPath>
+    </Reference>
+    <Reference Include="PresentationFramework" />
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.DirectoryServices" />
+    <Reference Include="System.Management" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Deployment" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Controlos\CaixaMensagem.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controlos\CaixaMensagem.designer.cs">
+      <DependentUpon>CaixaMensagem.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controlos\FullSingleInspectionItem.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controlos\FullSingleInspectionItem.Designer.cs">
+      <DependentUpon>FullSingleInspectionItem.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controlos\LedBulb.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="Controlos\Outros\ConfiguracoesAlarmes.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controlos\Outros\ConfiguracoesAlarmes.designer.cs">
+      <DependentUpon>ConfiguracoesAlarmes.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controlos\Outros\DetalheAlarme.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controlos\Outros\DetalheAlarme.Designer.cs">
+      <DependentUpon>DetalheAlarme.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controlos\SingleInspectionItem.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Controlos\SingleInspectionItem.Designer.cs">
+      <DependentUpon>SingleInspectionItem.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controlos\TabControlEX.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="FuncoesAuxiliares.cs" />
+    <Compile Include="Gestao Utilizadores\AdicionarOperador.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Gestao Utilizadores\AdicionarOperador.designer.cs">
+      <DependentUpon>AdicionarOperador.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Gestao Utilizadores\Login.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Gestao Utilizadores\Login.designer.cs">
+      <DependentUpon>Login.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Gestao Utilizadores\Sessao.cs" />
+    <Compile Include="MainForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MainForm.Designer.cs">
+      <DependentUpon>MainForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controlos\Outros\Alarmes.cs" />
+    <Compile Include="Controlos\Outros\LogFile.cs" />
+    <Compile Include="Manual\Inspecao.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Manual\Inspecao.designer.cs">
+      <DependentUpon>Inspecao.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Manual\Passadeira.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Manual\Passadeira.designer.cs">
+      <DependentUpon>Passadeira.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Outros\About.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Outros\About.designer.cs">
+      <DependentUpon>About.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Outros\FerramentasSistema.cs" />
+    <Compile Include="Outros\ImagemFullScreen.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Outros\ImagemFullScreen.Designer.cs">
+      <DependentUpon>ImagemFullScreen.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Outros\InputBox.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Outros\InputBox.Designer.cs">
+      <DependentUpon>InputBox.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Outros\LoadingForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Outros\LoadingForm.designer.cs">
+      <DependentUpon>LoadingForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Outros\MensagemBarreiras.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Outros\MensagemBarreiras.designer.cs">
+      <DependentUpon>MensagemBarreiras.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Outros\MensagemCaixaCheia.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Outros\MensagemCaixaCheia.designer.cs">
+      <DependentUpon>MensagemCaixaCheia.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Outros\MensagemSequenciaReprovados.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Outros\MensagemSequenciaReprovados.designer.cs">
+      <DependentUpon>MensagemSequenciaReprovados.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Outros\ModoAutomatico.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Outros\ModoAutomatico.designer.cs">
+      <DependentUpon>ModoAutomatico.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Outros\MostraImagem.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Outros\MostraImagem.Designer.cs">
+      <DependentUpon>MostraImagem.cs</DependentUpon>
+    </Compile>
+    <Compile Include="PLC\PlcSendRcv.cs" />
+    <Compile Include="PLC\Sharp7.cs" />
+    <Compile Include="PLC\Siemens.cs" />
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTime>True</DesignTime>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <Compile Include="Receitas\AlterarReceita.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Receitas\AlterarReceita.Designer.cs">
+      <DependentUpon>AlterarReceita.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Receitas\FormularioReceita.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Receitas\FormularioReceita.Designer.cs">
+      <DependentUpon>FormularioReceita.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Receitas\GestaoReceitas.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Receitas\GestaoReceitas.Designer.cs">
+      <DependentUpon>GestaoReceitas.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Receitas\Receitas.cs" />
+    <Compile Include="Variaveis.cs" />
+    <Compile Include="VarsAuxiliares.cs" />
+    <Compile Include="Visao\CamObject.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="Visao\CamObject.designer.cs">
+      <DependentUpon>CamObject.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Visao\InspLateralDiscos.cs" />
+    <Compile Include="Visao\HalconFunctions.cs" />
+    <EmbeddedResource Include="Controlos\CaixaMensagem.resx">
+      <DependentUpon>CaixaMensagem.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controlos\FullSingleInspectionItem.resx">
+      <DependentUpon>FullSingleInspectionItem.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controlos\Outros\ConfiguracoesAlarmes.resx">
+      <DependentUpon>ConfiguracoesAlarmes.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controlos\Outros\DetalheAlarme.resx">
+      <DependentUpon>DetalheAlarme.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controlos\SingleInspectionItem.resx">
+      <DependentUpon>SingleInspectionItem.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Gestao Utilizadores\AdicionarOperador.resx">
+      <DependentUpon>AdicionarOperador.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Gestao Utilizadores\Login.resx">
+      <DependentUpon>Login.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="MainForm.resx">
+      <DependentUpon>MainForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Manual\Inspecao.resx">
+      <DependentUpon>Inspecao.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Manual\Passadeira.resx">
+      <DependentUpon>Passadeira.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Outros\About.resx">
+      <DependentUpon>About.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Outros\ImagemFullScreen.resx">
+      <DependentUpon>ImagemFullScreen.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Outros\InputBox.resx">
+      <DependentUpon>InputBox.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Outros\LoadingForm.resx">
+      <DependentUpon>LoadingForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Outros\MensagemBarreiras.resx">
+      <DependentUpon>MensagemBarreiras.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Outros\MensagemCaixaCheia.resx">
+      <DependentUpon>MensagemCaixaCheia.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Outros\MensagemSequenciaReprovados.resx">
+      <DependentUpon>MensagemSequenciaReprovados.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Outros\ModoAutomatico.resx">
+      <DependentUpon>ModoAutomatico.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Outros\MostraImagem.resx">
+      <DependentUpon>MostraImagem.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <SubType>Designer</SubType>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Receitas\AlterarReceita.resx">
+      <DependentUpon>AlterarReceita.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Receitas\FormularioReceita.resx">
+      <DependentUpon>FormularioReceita.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Receitas\GestaoReceitas.resx">
+      <DependentUpon>GestaoReceitas.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Visao\CamObject.resx">
+      <DependentUpon>CamObject.cs</DependentUpon>
+    </EmbeddedResource>
+    <None Include="app.config" />
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\streakLogo.bmp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\1471369755_accepted_48.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\1471369764_warning_48.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\1471369787_cancel_48.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\STREAK_LOGO_GERAL_V0.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Resources\STREAK_LOGO_GERAL_V0_SMALL.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Imagens\iconfinder_arrow_sans_down_103299.png" />
+    <None Include="Imagens\iconfinder_arrow_sans_up_103304.png" />
+    <None Include="Imagens\1481324811_circle_red.png" />
+    <None Include="Imagens\1481324820_circle_green.png" />
+    <Content Include="Imagens\imagem maquina.png" />
+    <Content Include="Imagens\img01.bmp" />
+    <Content Include="Imagens\img02.bmp" />
+    <Content Include="Imagens\img03.bmp" />
+    <Content Include="Imagens\img04.bmp" />
+    <None Include="Imagens\ivo.PNG" />
+    <None Include="Imagens\IMG_MANUAL.png" />
+    <None Include="Imagens\IMG_AUTO.png" />
+    <Content Include="Imagens\pallete.bmp" />
+    <None Include="Imagens\seta_dir.png" />
+    <None Include="Imagens\seta_esq.png" />
+    <Content Include="STREAK_LOGO_GERAL_V0_SMALL.ico" />
+    <None Include="Imagens\imagem-nao-disponivel.jpg" />
+    <None Include="Imagens\1485273907_121.png" />
+    <Content Include="Resources\imagem3.PNG" />
+  </ItemGroup>
+  <ItemGroup>
+    <WCFMetadata Include="Connected Services\" />
+  </ItemGroup>
+  <ItemGroup>
+    <BootstrapperPackage Include=".NETFramework,Version=v4.7.2">
+      <Visible>False</Visible>
+      <ProductName>Microsoft .NET Framework 4.7.2 %28x86 and x64%29</ProductName>
+      <Install>true</Install>
+    </BootstrapperPackage>
+    <BootstrapperPackage Include="Microsoft.Net.Framework.3.5.SP1">
+      <Visible>False</Visible>
+      <ProductName>.NET Framework 3.5 SP1</ProductName>
+      <Install>false</Install>
+    </BootstrapperPackage>
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>
