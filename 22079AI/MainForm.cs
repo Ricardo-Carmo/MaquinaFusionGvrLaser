@@ -25,7 +25,7 @@ namespace _22079AI
         public DataGridView datagridviewHistoricAlarms;
         public Receitas Receita;
         public LogFile ErrorLogFile = new LogFile(Application.StartupPath + @"\ErrorLog.txt", 1024);
-        public Siemens PLC1;
+        //public Siemens PLC1;
         public InspLateralDiscos Inspection;
         public PlcSendRcv PlcControl= new PlcSendRcv();
         public HandleAlarms AlarmsHandling;
@@ -62,7 +62,7 @@ namespace _22079AI
             try
             {
                 //Iniciar comunicação com o PLC
-                this.PLC1 = new Siemens(this.VariaveisAuxiliares.iniPath);
+                //this.PLC1 = new Siemens(this.VariaveisAuxiliares.iniPath);
 
                 #region Tricks
                 var version = Assembly.GetEntryAssembly().GetName().Version;
@@ -92,8 +92,8 @@ namespace _22079AI
                 this.UserSession = new Sessao(this.VariaveisAuxiliares.DatabaseConnectionString);
 
                 //Arranca com a thread do ciclo do PLC
-                new Thread(CicloPLC) { Priority = ThreadPriority.Highest }.Start();
-                //new Thread(PlcControl.WriteReadPlc) { Priority = ThreadPriority.Highest }.Start();
+                //new Thread(CicloPLC) { Priority = ThreadPriority.Highest }.Start();
+                new Thread(PlcControl.WriteReadPlc) { Priority = ThreadPriority.Highest }.Start();
 
                 //Instância Receitas
                 this.Receita = new Receitas(this.VariaveisAuxiliares.DatabaseConnectionString, this.VariaveisAuxiliares.RobotAddress);
@@ -131,6 +131,7 @@ namespace _22079AI
         {
             if (new CaixaMensagem("Deseja realmente terminar a aplicação?", "Fechar Aplicação", CaixaMensagem.TipoMsgBox.Question).ShowDialog() == DialogResult.Yes)
             {
+                this.PlcControl.Dispose();
 
                 this.Inspection.Dispose();
 
@@ -148,558 +149,558 @@ namespace _22079AI
             return this.VariaveisAuxiliares.PlcCycleTime >= miliseconds ? 1 : Convert.ToInt32(miliseconds / this.VariaveisAuxiliares.PlcCycleTime);
         }
 
-        private void UpdatePLCTime()
-        {
-            try
-            {
-                if (this.PLC1 == null)
-                    throw new Exception("PLC == NULL");
+        //private void UpdatePLCTime()
+        //{
+        //    try
+        //    {
+        //        if (this.PLC1 == null)
+        //            throw new Exception("PLC == NULL");
 
-                this.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.DTL, DateTime.Now.ToUniversalTime(), 90, 0);
-                this.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, true, 90, 12, 0);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine("UpdatePLCTime(): " + ex.Message);
-            }
+        //        this.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.DTL, DateTime.Now.ToUniversalTime(), 90, 0);
+        //        this.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, true, 90, 12, 0);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Debug.WriteLine("UpdatePLCTime(): " + ex.Message);
+        //    }
 
-        }
+        //}
 
-        private void CicloPLC()
-        {
-            //Clock para as interações
-            Stopwatch threadClock = Stopwatch.StartNew();
+        //private void CicloPLC()
+        //{
+        //    //Clock para as interações
+        //    Stopwatch threadClock = Stopwatch.StartNew();
 
-            int e = 0;
-            bool fpError = false;
-            bool firstCycle = true;
-            bool fpAckAlarms = false;
-            byte lastHourUpdate = byte.MaxValue;
+        //    int e = 0;
+        //    bool fpError = false;
+        //    bool firstCycle = true;
+        //    bool fpAckAlarms = false;
+        //    byte lastHourUpdate = byte.MaxValue;
 
-            DateTime[] simClocks = new DateTime[4];
-            for (int i = 0; i < simClocks.Length; i++)
-                simClocks[i] = DateTime.Now;
+        //    DateTime[] simClocks = new DateTime[4];
+        //    for (int i = 0; i < simClocks.Length; i++)
+        //        simClocks[i] = DateTime.Now;
 
 
-            #region Multiplicadores de tempo de ciclo
-            //Multiplicadores de tempo de ciclo
-            CycleMultiplier _50msCycleTimer = new CycleMultiplier(this.GetNumOFTimesCycle(50));
-            CycleMultiplier _100msCycleTimer = new CycleMultiplier(this.GetNumOFTimesCycle(100));
-            CycleMultiplier _250msCycleTimer = new CycleMultiplier(this.GetNumOFTimesCycle(250));
-            CycleMultiplier _500msCycleTimer = new CycleMultiplier(this.GetNumOFTimesCycle(500));
-            CycleMultiplier _1000msCycleTimer = new CycleMultiplier(this.GetNumOFTimesCycle(1000));
-            #endregion
-
-            #region DB400_HMI
-
-            List<Siemens.ReadMultiVariables> DB400_HMI = new List<Siemens.ReadMultiVariables>();
-
-            //alarms
-            for (int i = 0; i < VARIAVEIS.Alarmes.Length / 8; i++)
-                DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.Bool));
-
-            //inputs
-            for (int i = 0; i < 10; i++)
-                DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.Bool));
-
-            //outputs
-            for (int i = 0; i < 10; i++)
-                DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.Bool));
-
-            //bits status
-            for (int i = 0; i < 5; i++)
-                DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.Bool));
-
-            DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte));
-
-
-            //INSPECTION RESULT struct
-            DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.UDInt));
-            DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.DInt));
-
-            for (int i = 0; i < 5; i++)
-                DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.Real));
-
-            for (int i = 0; i < 2; i++)
-                DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.UInt));
-
-            DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte));
-
-            DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.Bool));
-
-            //COUNTERS
-            DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.UInt));
-
-            for (int i = 0; i < 6; i++)
-                DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.DInt));
-
-            //motor passadeira
-            for (int i = 0; i < 2; i++)
-                DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.Bool));
-
-            DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.UDInt));
-
-
-            //cilindros 
-            for (int i = 0; i < 3; i++)
-                DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte));
-
-            for (int i = 0; i < 3; i++) //bits stats robot
-                DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.Bool));
-
-            //CONTADORES
-            for (int i = 0; i < 6; i++)
-                DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.UInt));
-            #endregion
-
-            while (VARIAVEIS.FLAG_WHILE_CYCLE)
-            {
-                if (threadClock.ElapsedMilliseconds >= VariaveisAuxiliares.PlcCycleTime)
-                    try
-                    {
-                        //Reinicar a contagem do clock para a thread
-                        threadClock.Restart();
-
-                        #region Multiplicadores de Ciclo
-                        //Obter o número da página onde estamos
-                        int tabControlNumber = this.VariaveisAuxiliares.SelectedTabIndex;
-
-                        //Atualiza os multiplicadores de ciclos
-                        _50msCycleTimer.UpdateCycleCount(true);
-                        _100msCycleTimer.UpdateCycleCount(true);
-                        _250msCycleTimer.UpdateCycleCount(true);
-                        _500msCycleTimer.UpdateCycleCount(true);
-                        _1000msCycleTimer.UpdateCycleCount(true);
-                        #endregion
-
-                        //Iniciar a contagem do tempo de ciclo
-                        this.PLC1.IniciaContagemTempoCiclo();
-                        this.State = 1;
-
-                        #region Processa as Entradas
-                        //**************************** PROCESSA AS ENTRADAS ****************************
-                        try
-                        {
-                            if (this.PLC1.LeSequenciaTags(Siemens.MemoryArea.DB, DB400_HMI.ToArray(), 400, 0))
-                            {   //descodifica as leituras
-                                int indexAuxI = 0; // auxiliar do ponteiro de leitura
-
-                                #region Alarmes
-                                for (int i = 0; i < VARIAVEIS.Alarmes.Length / 8; i++)
-                                {
-                                    for (int k = 0; k < 8; k++)
-                                        VARIAVEIS.Alarmes[k + (8 * i)] = (Convert.ToBoolean(DB400_HMI[i].ObtemVariavel(k)));
-
-                                    indexAuxI++;
-                                }
-                                #endregion
-
-                                #region Outputs
-
-                                //PLC
-                                OUTPUTS.CMD_DESINDEXA_FACA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
-                                OUTPUTS.CMD_INDEXA_FACA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
-                                OUTPUTS.RESERVA_VALVULA_11 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
-                                OUTPUTS.RESERVA_VALVULA_12 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
-                                OUTPUTS.CMD_PORTA_DIREITA_ABRE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
-                                OUTPUTS.CMD_PORTA_DIREITA_FECHA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
-                                OUTPUTS.CMD_PORTA_ESQUERDA_ABRE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
-                                OUTPUTS.CMD_PORTA_ESQUERDA_FECHA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
-                                indexAuxI++;
-
-                                OUTPUTS.CMD_RES_VALV_5 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
-                                OUTPUTS.CMD_RES_VALV_5_ERROR = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
-                                OUTPUTS.CMD_RES_VALV_11_2 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
-                                OUTPUTS.CMD_RES_VALV_11_3 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
-                                OUTPUTS.CMD_RES_VALV_11_4 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
-                                OUTPUTS.CMD_RES_VALV_11_5 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
-                                OUTPUTS.CMD_RES_VALV_11_6 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
-                                OUTPUTS.CMD_RES_VALV_11_7 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
-                                indexAuxI++;
-
-                                //1º CARTA 16 DO's
-                                OUTPUTS.CMD_RES_VALV_12_0 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
-                                OUTPUTS.CMD_RES_VALV_12_1 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
-                                OUTPUTS.CMD_TOWER_GREEN = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
-                                OUTPUTS.CMD_TOWER_RED = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
-                                OUTPUTS.CMD_TOWER_YELLOW = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
-                                OUTPUTS.CMD_TOWER_BUZZER = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
-                                OUTPUTS.CMD_LED_START = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
-                                OUTPUTS.CMD_LED_RED = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
-                                indexAuxI++;
-
-                                OUTPUTS.CMD_LED_RESET = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
-                                OUTPUTS.CMD_LED_PC_ON = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
-                                OUTPUTS.CMD_FECHO_CAMERA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
-                                OUTPUTS.CMD_FECHO_ILUMINACAO = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
-                                OUTPUTS.CMD_FECHO_MONITOR = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
-                                OUTPUTS.CMD_FECHO_JAULA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
-                                OUTPUTS.CMD_RUN_VFR = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
-                                OUTPUTS.CMD_RESET_VFR = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
-                                indexAuxI++;
-
-                                //2º CARTA 8 DO's
-                                OUTPUTS.CMD_VFR_ON = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
-                                OUTPUTS.OUT_RESERVA_14_1 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
-                                OUTPUTS.ORD_GRAB_CONVOYER = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
-                                OUTPUTS.ORD_TAKE_INSPECTION = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
-                                OUTPUTS.ORD_APROVE_KNIFE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
-                                OUTPUTS.ORD_REPROVE_KNIFE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
-                                OUTPUTS.ORD_INI_POSITION = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
-                                OUTPUTS.OUT_RESERVA_14_7 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
-                                indexAuxI++;
-
-                                //RESERVED
-                                indexAuxI++;
-
-                                //RESERVED
-                                indexAuxI++;
-
-                                //RESERVED
-                                indexAuxI++;
-
-                                //SAFETY
-                                OUTPUTS.CMD_CORTE_AR = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
-                                OUTPUTS.EMG_ROBOT = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
-                                OUTPUTS.PORTAS_ROBOT = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
-                                OUTPUTS.CMD_RESERVA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
-                                indexAuxI++;
-
-                                //RESERVA BYTE
-                                indexAuxI++;
-                                #endregion
-
-                                #region Inputs
-
-                                //PLC
-                                INPUTS.BTN_START = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
-                                INPUTS.BTN_STOP = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
-                                INPUTS.BTN_RESET = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
-                                INPUTS.BTN_PC_ON = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
-                                INPUTS.SEN_PORTA_DIREITA_FECHADA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
-                                INPUTS.SEN_PORTA_DIREITA_ABERTA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
-                                INPUTS.SEN_PORTA_ESQUERDA_FECHADA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
-                                INPUTS.SEN_PORTA_ESQUERDA_ABERTA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
-                                indexAuxI++;
-
-                                INPUTS.SEN_KNIFE_CONVYER_DETECTED = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
-                                INPUTS.SEN_INDEX_FACA_BAIXO = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
-                                INPUTS.SEN_ROBOT_GARRA_ABERTA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
-                                INPUTS.SEN_CILINDRO_CONVOYER_INDEX = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
-                                INPUTS.SEN_PRESENCA_CAIXA_APROVADOS = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
-                                INPUTS.SEN_PRESENCA_CAIXA_REPROVADOS = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
-                                INPUTS.RESERVA_1_6 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
-                                INPUTS.RESERVA_1_7 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
-                                indexAuxI++;
-
-                                //1º CARTA 16 DI's
-                                INPUTS.STU_THP_VFR = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
-                                INPUTS.STU_VFR_FAULT = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
-                                INPUTS.STU_VFR_RUNNING = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
-                                INPUTS.RESERVA_2_3 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
-                                INPUTS.RESERVA_2_4 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
-                                INPUTS.RESERVA_2_5 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
-                                INPUTS.RESERVA_2_6 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
-                                INPUTS.RESERVA_2_7 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
-                                indexAuxI++;
-
-                                INPUTS.STA_GRAB_CONVOYER = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
-                                INPUTS.STA_TAKE_INSPECTION = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
-                                INPUTS.STA_APROVE_KNIFE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
-                                INPUTS.STA_REPROVE_KNIFE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
-                                INPUTS.STA_INI_POSITION = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
-                                INPUTS.RESERVA_3_5 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
-                                INPUTS.RESERVA_3_6 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
-                                INPUTS.RESERVA_3_7 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
-                                indexAuxI++;
-
-                                //2º CARTA 8 DI's
-                                INPUTS.RESERVA_4_0 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
-                                INPUTS.RESERVA_4_1 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
-                                INPUTS.RESERVA_4_2 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
-                                INPUTS.RESERVA_4_3 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
-                                INPUTS.RESERVA_4_4 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
-                                INPUTS.RESERVA_4_5 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
-                                INPUTS.RESERVA_4_6 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
-                                INPUTS.RESERVA_4_7 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
-                                indexAuxI++;
-
-                                //RESERVED
-                                indexAuxI++;
-
-                                //RESERVED
-                                indexAuxI++;
-
-                                //RESERVED
-                                indexAuxI++;
-
-                                //safety
-
-                                INPUTS.EMERGENCIA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
-                                INPUTS.FECHO_CAMERA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
-                                INPUTS.FECHO_ILUMINACAO = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
-                                INPUTS.FECHO_ROBOT = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
-                                INPUTS.FECHO_ECRA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
-                                INPUTS.BARREIRA_APROVADAS = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
-                                INPUTS.BARREIRA_REPROVADAS = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
-                                INPUTS.RESERVA_1000_7 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
-                                indexAuxI++;
-
-                                //RESERVA BYTE
-                                indexAuxI++;
-                                #endregion
-
-                                #region Read Tags
-                                DB400.INF_ALL_INIT_POS_OK = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
-                                DB400.INF_RECEITA_CARREGADA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
-                                DB400.INF_TRANSPORTER_READY = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
-                                DB400.INF_ROBO_READY = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
-                                DB400.ALL_DOORS_CLOSED = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
-                                DB400.READY_TO_AUTO = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
-                                DB400.MANUAL_AUTO = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
-                                DB400.CYCLE_ON = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
-                                indexAuxI++;
-
-                                DB400.USER_SESSION_ACTIVE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
-                                DB400.CLOCK_1HZ = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
-                                DB400.CLOCK_2HZ = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
-                                DB400.CLOCK_5HZ = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
-                                DB400.CLOCK_10HZ = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
-                                DB400.BYPASS_SECURITY = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
-                                DB400.VISION_LIGHT_ON = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
-                                DB400.CAM_TRIGGER_MODE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
-                                indexAuxI++;
-
-                                DB400.CAM_ORD_TRIGGER = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
-                                DB400.FECHO_CAM_CLOSED = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
-                                DB400.FECHO_ILUMINACAO_CLOSED = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
-                                DB400.FECHO_ROBOT_CLOSED = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
-                                DB400.FECHO_ECRA_CLOSED = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
-                                DB400.FECHO_BARREIRA_APROV_CLOSED = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
-                                DB400.FECHO_BARREIRA_REPROV_CLOSED = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
-                                DB400.CARREGAMENTO_EM_CURSO = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
-                                indexAuxI++;
-
-                                DB400.DESCARGA_OK_EM_CURSO = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
-                                DB400.DESCARGA_NOK_EM_CURSO = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
-                                DB400.DESCARGA_OK_FULL = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
-                                DB400.DESCARGA_NOK_FULL = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
-                                DB400.SEQUENCIA_NOK = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
-                                DB400.STOP_BARREIRA_APROVADOS = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
-                                DB400.STOP_BARREIRA_REPROVADOS = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
-                                DB400.CAIXA_PRESENTE_APROVADOS = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
-                                indexAuxI++;
-
-                                DB400.CAIXA_PRESENTE_REPROVADOS = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
-                                DB400.EMERGENCIA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
-                                DB400.CON_GRAB_CONVOYER = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
-                                DB400.CON_TAKE_INSPECTION = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
-                                DB400.CON_APROVE_KNIFE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
-                                DB400.CON_REPROVE_KNIFE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
-                                DB400.CON_INI_POSITION = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
-                                DB400.TRANSPORTADOR_COM_FACA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
-                                indexAuxI++;
-
-                                DB400.RESERVA_BYTE_41 = Convert.ToByte(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
-
-                                indexAuxI += DB400.INSPECTION_RESULT.UpdateTags(DB400_HMI.ToArray(), indexAuxI);
-
-                                DB400.RESERVED_INT = Convert.ToUInt16(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
-
-                                DB400.TOTAL_APROVED_BY_BOX = Convert.ToInt32(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
-                                DB400.TOTAL_REPROVED_BY_BOX = Convert.ToInt32(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
-                                DB400.TOTAL_APROVED = Convert.ToInt32(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
-                                DB400.TOTAL_REPROVED = Convert.ToInt32(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
-                                DB400.LOTE_TOTAL_NUMBER = Convert.ToInt32(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
-                                DB400.SEQUENCE_REPROVED = Convert.ToInt32(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
-
-                                indexAuxI += DB400.MOTOR_PASSADEIRA.UpdateTags(DB400_HMI.ToArray(), indexAuxI);
-
-                                // 0 - SEM COMANDOS / 1 - ORDEM / 2 - / 3 - 
-                                DB400.CILINDRO_INDEXACAO = Convert.ToByte(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
-                                DB400.PORTA_DIREITA = Convert.ToByte(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
-                                DB400.PORTA_ESQUERDA = Convert.ToByte(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
-
-                                DB400.STA_GRAB_CONVOYER = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
-                                DB400.STA_TAKE_INSPECTION = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
-                                DB400.STA_APROVE_KNIFE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
-                                DB400.STA_REPROVE_KNIFE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
-                                DB400.STA_INI_POSITION = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
-                                DB400.STA_SAFE_POSITION = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
-                                DB400.ALM_GRAB_CONVOYER = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
-                                DB400.ALM_TAKE_INSPECTION = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
-                                indexAuxI++;
-
-                                DB400.ALM_APROVE_KNIFE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
-                                DB400.ALM_REPROVE_KNIFE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
-                                DB400.ALM_INI_POSITION = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
-                                DB400.RESERVA_104_3 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
-                                DB400.RESERVA_104_4 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
-                                DB400.RESERVA_104_5 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
-                                DB400.RESERVA_104_6 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
-                                DB400.RESERVA_104_7 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
-                                indexAuxI++;
-
-                                DB400.PECAS_ULTIMA_HORA = Convert.ToUInt16(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
-                                DB400.PECAS_MEDIA_HORA = Convert.ToUInt16(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
-                                DB400.TEMPO_DE_CICLO = Convert.ToUInt16(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
-
-                                DB400.COUNTER_KNIFES_ENGRAVED = Convert.ToUInt16(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
-                                DB400.SUB_COUNTER_KNIFES = Convert.ToUInt16(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
-                                DB400.KNIFES_TO_ENGRAVE = Convert.ToUInt16(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
-                                
-                                #endregion
-
-                                this.errRead = false;
-                            }
-                            else
-                                //EJ-COMENT
-                                //throw new Exception("Reading Error!");
-                                Debug.WriteLine("CicloPLC() - Processa Entradas: ERRO");
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine("CicloPLC() - Processa Entradas: " + ex.Message);
-                            this.errRead = true;
-                        }
-                        finally
-                        {
-                            this.ReadTime = (int)this.PLC1.TempoCicloDecorrido;
-                            this.State = 2;
-                        }
-                        #endregion
-
-                        #region Processa as Saídas
-                        //**************************** PROCESSA AS SAÍDAS ******************************
-                        try
-                        {
-                            this.errWrite = !this.PLC1.ProcessaListagemEscrita();
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine("CicloPLC() - Processa Saídas: " + ex.Message);
-                            this.errWrite = true;
-                        }
-                        finally
-                        {
-                            this.WriteTime = (int)this.PLC1.TempoCicloDecorrido - this.ReadTime;
-                            this.State = 3;
-                        }
-                        //******************************************************************************
-                        #endregion
-
-                        //FP do Botão de Reset, para os alarmes ativos
-                        if (INPUTS.BTN_RESET && !fpAckAlarms)
-                        {
-                            fpAckAlarms = true;
-                            this.RESET_ALARMES_ATIVOS = true;
-                        }
-                        else if (!INPUTS.BTN_RESET)
-                            fpAckAlarms = false;
-
-                        //trigger a camera
-                        if (this.Inspection != null) this.Inspection.EXTERNAL_TRIGGER = DB400.CAM_ORD_TRIGGER;
-
-                        //a cada 1seg 
-                        if (_1000msCycleTimer.IsReached)
-                        {
-                            //envia o software OK
-                            this.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, true, 401, 6, 0);
-
-                            if (this.Inspection != null)
-                                if (this.Inspection.CameraAtiva != DB400.CAM_TRIGGER_MODE)//envia o status da camera para o PLC
-                                    this.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Int, this.Inspection.CameraAtiva ? 2 : 0, this.Inspection.DbNumber, 6, 0);
-                        }
-
-                        if ((this.PLC1.EstadoLigacao && !VARIAVEIS.ESTADO_CONEXAO_PLC) || (_1000msCycleTimer.IsReached && lastHourUpdate != DateTime.Now.Hour))
-                        {   //Atualizar a hora do PLC quando ganha comunicação com PLC ou a cada hora que passa
-                            lastHourUpdate = (byte)DateTime.Now.Hour;
-                            this.UpdatePLCTime();
-                        }
-
-                        //verifica se é necessário inserir na base de dados 
-                        if (DB400.INSPECTION_RESULT.READ && (DB400.INSPECTION_RESULT.ID != this.VariaveisAuxiliares.LastInsertedID) && !this.VariaveisAuxiliares.AuxOrdInsertData)
-                        {
-                            this.VariaveisAuxiliares.AuxOrdInsertData = true;
-
-                            new Thread(() => this.VariaveisAuxiliares.InsereRegistoBaseDados(DB400.INSPECTION_RESULT)).Start();
-                        }
-
-                        //Efetua o pedido de restart à comunicação com o PLC
-                        if (this.PLC1.RestartRequested) this.PLC1.DisconnectFromPLC();
-
-                        fpError = false; //clear flag error
-
-                    }
-                    catch (Exception ex)
-                    {
-                        #region Error Handling
-                        if (!fpError)
-                        {
-                            fpError = true;
-                            e = 0;
-                            Debug.WriteLine("PLC Cycle Error (i == " + e + "): " + ex.Message);
-                        }
-                        e++;
-                        if (e % 5 == 0)
-                            Debug.WriteLine("PLC Cycle Error (i == " + e + "): " + ex.Message);
-                        #endregion
-
-                        this.State = 0;
-                    }
-                    finally
-                    {
-                        //Terminar a contagem do tempo de ciclo
-                        this.PLC1.TerminaContagemTempoCiclo();
-
-                        if (this.PLC1.TempoCicloAtual >= this.VariaveisAuxiliares.PlcCycleTime)
-                            this.SleepTime = 0;
-                        else
-                            this.SleepTime = this.VariaveisAuxiliares.PlcCycleTime - this.PLC1.TempoCicloAtual;
-
-                        VARIAVEIS.ESTADO_CONEXAO_PLC = this.PLC1.EstadoLigacao;
-                    }
-
-                #region Simulação Clocks - se NAO HOUVER PLC COMUNICATION
-                //simula os clocks se nao houver comunicação com o PLC
-                if (!VARIAVEIS.ESTADO_CONEXAO_PLC)
-                {
-                    DateTime dtNow = DateTime.Now;
-
-                    if ((dtNow - simClocks[0]).TotalMilliseconds >= 1000)
-                    {
-                        DB400.CLOCK_1HZ = !DB400.CLOCK_1HZ;
-                        simClocks[0] = dtNow;
-                    }
-
-                    if ((dtNow - simClocks[1]).TotalMilliseconds >= 500)
-                    {
-                        DB400.CLOCK_2HZ = !DB400.CLOCK_2HZ;
-                        simClocks[1] = dtNow;
-                    }
-
-                    if ((dtNow - simClocks[2]).TotalMilliseconds >= 200)
-                    {
-                        DB400.CLOCK_5HZ = !DB400.CLOCK_5HZ;
-                        simClocks[2] = dtNow;
-                    }
-
-                    if ((dtNow - simClocks[3]).TotalMilliseconds >= 100)
-                    {
-                        DB400.CLOCK_10HZ = !DB400.CLOCK_10HZ;
-                        simClocks[3] = dtNow;
-                    }
-                }
-                #endregion
-
-                //so processor can rest for a while
-                Thread.Sleep(5);
-            }
-
-            //Antes de encerrar a thread, desliga a comunicação com o PLC
-            if (PLC1 != null)
-                PLC1.DisconnectFromPLC();
-        }
+        //    #region Multiplicadores de tempo de ciclo
+        //    //Multiplicadores de tempo de ciclo
+        //    CycleMultiplier _50msCycleTimer = new CycleMultiplier(this.GetNumOFTimesCycle(50));
+        //    CycleMultiplier _100msCycleTimer = new CycleMultiplier(this.GetNumOFTimesCycle(100));
+        //    CycleMultiplier _250msCycleTimer = new CycleMultiplier(this.GetNumOFTimesCycle(250));
+        //    CycleMultiplier _500msCycleTimer = new CycleMultiplier(this.GetNumOFTimesCycle(500));
+        //    CycleMultiplier _1000msCycleTimer = new CycleMultiplier(this.GetNumOFTimesCycle(1000));
+        //    #endregion
+
+        //    #region DB400_HMI
+
+        //    List<Siemens.ReadMultiVariables> DB400_HMI = new List<Siemens.ReadMultiVariables>();
+
+        //    //alarms
+        //    for (int i = 0; i < VARIAVEIS.Alarmes.Length / 8; i++)
+        //        DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.Bool));
+
+        //    //inputs
+        //    for (int i = 0; i < 10; i++)
+        //        DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.Bool));
+
+        //    //outputs
+        //    for (int i = 0; i < 10; i++)
+        //        DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.Bool));
+
+        //    //bits status
+        //    for (int i = 0; i < 5; i++)
+        //        DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.Bool));
+
+        //    DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte));
+
+
+        //    //INSPECTION RESULT struct
+        //    DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.UDInt));
+        //    DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.DInt));
+
+        //    for (int i = 0; i < 5; i++)
+        //        DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.Real));
+
+        //    for (int i = 0; i < 2; i++)
+        //        DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.UInt));
+
+        //    DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte));
+
+        //    DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.Bool));
+
+        //    //COUNTERS
+        //    DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.UInt));
+
+        //    for (int i = 0; i < 6; i++)
+        //        DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.DInt));
+
+        //    //motor passadeira
+        //    for (int i = 0; i < 2; i++)
+        //        DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.Bool));
+
+        //    DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.UDInt));
+
+
+        //    //cilindros 
+        //    for (int i = 0; i < 3; i++)
+        //        DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte));
+
+        //    for (int i = 0; i < 3; i++) //bits stats robot
+        //        DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.Bool));
+
+        //    //CONTADORES
+        //    for (int i = 0; i < 6; i++)
+        //        DB400_HMI.Add(new Siemens.ReadMultiVariables(Siemens.TipoVariavel.UInt));
+        //    #endregion
+
+        //    while (VARIAVEIS.FLAG_WHILE_CYCLE)
+        //    {
+        //        if (threadClock.ElapsedMilliseconds >= VariaveisAuxiliares.PlcCycleTime)
+        //            try
+        //            {
+        //                //Reinicar a contagem do clock para a thread
+        //                threadClock.Restart();
+
+        //                #region Multiplicadores de Ciclo
+        //                //Obter o número da página onde estamos
+        //                int tabControlNumber = this.VariaveisAuxiliares.SelectedTabIndex;
+
+        //                //Atualiza os multiplicadores de ciclos
+        //                _50msCycleTimer.UpdateCycleCount(true);
+        //                _100msCycleTimer.UpdateCycleCount(true);
+        //                _250msCycleTimer.UpdateCycleCount(true);
+        //                _500msCycleTimer.UpdateCycleCount(true);
+        //                _1000msCycleTimer.UpdateCycleCount(true);
+        //                #endregion
+
+        //                //Iniciar a contagem do tempo de ciclo
+        //                this.PLC1.IniciaContagemTempoCiclo();
+        //                this.State = 1;
+
+        //                #region Processa as Entradas
+        //                //**************************** PROCESSA AS ENTRADAS ****************************
+        //                try
+        //                {
+        //                    if (this.PLC1.LeSequenciaTags(Siemens.MemoryArea.DB, DB400_HMI.ToArray(), 400, 0))
+        //                    {   //descodifica as leituras
+        //                        int indexAuxI = 0; // auxiliar do ponteiro de leitura
+
+        //                        #region Alarmes
+        //                        for (int i = 0; i < VARIAVEIS.Alarmes.Length / 8; i++)
+        //                        {
+        //                            for (int k = 0; k < 8; k++)
+        //                                VARIAVEIS.Alarmes[k + (8 * i)] = (Convert.ToBoolean(DB400_HMI[i].ObtemVariavel(k)));
+
+        //                            indexAuxI++;
+        //                        }
+        //                        #endregion
+
+        //                        #region Outputs
+
+        //                        //PLC
+        //                        OUTPUTS.CMD_DESINDEXA_FACA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
+        //                        OUTPUTS.CMD_INDEXA_FACA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
+        //                        OUTPUTS.RESERVA_VALVULA_11 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
+        //                        OUTPUTS.RESERVA_VALVULA_12 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
+        //                        OUTPUTS.CMD_PORTA_DIREITA_ABRE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
+        //                        OUTPUTS.CMD_PORTA_DIREITA_FECHA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
+        //                        OUTPUTS.CMD_PORTA_ESQUERDA_ABRE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
+        //                        OUTPUTS.CMD_PORTA_ESQUERDA_FECHA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
+        //                        indexAuxI++;
+
+        //                        OUTPUTS.CMD_RES_VALV_5 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
+        //                        OUTPUTS.CMD_RES_VALV_5_ERROR = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
+        //                        OUTPUTS.CMD_RES_VALV_11_2 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
+        //                        OUTPUTS.CMD_RES_VALV_11_3 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
+        //                        OUTPUTS.CMD_RES_VALV_11_4 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
+        //                        OUTPUTS.CMD_RES_VALV_11_5 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
+        //                        OUTPUTS.CMD_RES_VALV_11_6 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
+        //                        OUTPUTS.CMD_RES_VALV_11_7 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
+        //                        indexAuxI++;
+
+        //                        //1º CARTA 16 DO's
+        //                        OUTPUTS.CMD_RES_VALV_12_0 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
+        //                        OUTPUTS.CMD_RES_VALV_12_1 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
+        //                        OUTPUTS.CMD_TOWER_GREEN = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
+        //                        OUTPUTS.CMD_TOWER_RED = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
+        //                        OUTPUTS.CMD_TOWER_YELLOW = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
+        //                        OUTPUTS.CMD_TOWER_BUZZER = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
+        //                        OUTPUTS.CMD_LED_START = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
+        //                        OUTPUTS.CMD_LED_RED = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
+        //                        indexAuxI++;
+
+        //                        OUTPUTS.CMD_LED_RESET = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
+        //                        OUTPUTS.CMD_LED_PC_ON = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
+        //                        OUTPUTS.CMD_FECHO_CAMERA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
+        //                        OUTPUTS.CMD_FECHO_ILUMINACAO = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
+        //                        OUTPUTS.CMD_FECHO_MONITOR = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
+        //                        OUTPUTS.CMD_FECHO_JAULA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
+        //                        OUTPUTS.CMD_RUN_VFR = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
+        //                        OUTPUTS.CMD_RESET_VFR = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
+        //                        indexAuxI++;
+
+        //                        //2º CARTA 8 DO's
+        //                        OUTPUTS.CMD_VFR_ON = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
+        //                        OUTPUTS.OUT_RESERVA_14_1 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
+        //                        OUTPUTS.ORD_GRAB_CONVOYER = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
+        //                        OUTPUTS.ORD_TAKE_INSPECTION = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
+        //                        OUTPUTS.ORD_APROVE_KNIFE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
+        //                        OUTPUTS.ORD_REPROVE_KNIFE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
+        //                        OUTPUTS.ORD_INI_POSITION = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
+        //                        OUTPUTS.OUT_RESERVA_14_7 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
+        //                        indexAuxI++;
+
+        //                        //RESERVED
+        //                        indexAuxI++;
+
+        //                        //RESERVED
+        //                        indexAuxI++;
+
+        //                        //RESERVED
+        //                        indexAuxI++;
+
+        //                        //SAFETY
+        //                        OUTPUTS.CMD_CORTE_AR = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
+        //                        OUTPUTS.EMG_ROBOT = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
+        //                        OUTPUTS.PORTAS_ROBOT = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
+        //                        OUTPUTS.CMD_RESERVA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
+        //                        indexAuxI++;
+
+        //                        //RESERVA BYTE
+        //                        indexAuxI++;
+        //                        #endregion
+
+        //                        #region Inputs
+
+        //                        //PLC
+        //                        INPUTS.BTN_START = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
+        //                        INPUTS.BTN_STOP = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
+        //                        INPUTS.BTN_RESET = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
+        //                        INPUTS.BTN_PC_ON = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
+        //                        INPUTS.SEN_PORTA_DIREITA_FECHADA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
+        //                        INPUTS.SEN_PORTA_DIREITA_ABERTA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
+        //                        INPUTS.SEN_PORTA_ESQUERDA_FECHADA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
+        //                        INPUTS.SEN_PORTA_ESQUERDA_ABERTA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
+        //                        indexAuxI++;
+
+        //                        INPUTS.SEN_KNIFE_CONVYER_DETECTED = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
+        //                        INPUTS.SEN_INDEX_FACA_BAIXO = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
+        //                        INPUTS.SEN_ROBOT_GARRA_ABERTA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
+        //                        INPUTS.SEN_CILINDRO_CONVOYER_INDEX = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
+        //                        INPUTS.SEN_PRESENCA_CAIXA_APROVADOS = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
+        //                        INPUTS.SEN_PRESENCA_CAIXA_REPROVADOS = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
+        //                        INPUTS.RESERVA_1_6 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
+        //                        INPUTS.RESERVA_1_7 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
+        //                        indexAuxI++;
+
+        //                        //1º CARTA 16 DI's
+        //                        INPUTS.STU_THP_VFR = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
+        //                        INPUTS.STU_VFR_FAULT = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
+        //                        INPUTS.STU_VFR_RUNNING = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
+        //                        INPUTS.RESERVA_2_3 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
+        //                        INPUTS.RESERVA_2_4 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
+        //                        INPUTS.RESERVA_2_5 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
+        //                        INPUTS.RESERVA_2_6 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
+        //                        INPUTS.RESERVA_2_7 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
+        //                        indexAuxI++;
+
+        //                        INPUTS.STA_GRAB_CONVOYER = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
+        //                        INPUTS.STA_TAKE_INSPECTION = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
+        //                        INPUTS.STA_APROVE_KNIFE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
+        //                        INPUTS.STA_REPROVE_KNIFE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
+        //                        INPUTS.STA_INI_POSITION = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
+        //                        INPUTS.RESERVA_3_5 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
+        //                        INPUTS.RESERVA_3_6 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
+        //                        INPUTS.RESERVA_3_7 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
+        //                        indexAuxI++;
+
+        //                        //2º CARTA 8 DI's
+        //                        INPUTS.RESERVA_4_0 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
+        //                        INPUTS.RESERVA_4_1 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
+        //                        INPUTS.RESERVA_4_2 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
+        //                        INPUTS.RESERVA_4_3 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
+        //                        INPUTS.RESERVA_4_4 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
+        //                        INPUTS.RESERVA_4_5 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
+        //                        INPUTS.RESERVA_4_6 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
+        //                        INPUTS.RESERVA_4_7 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
+        //                        indexAuxI++;
+
+        //                        //RESERVED
+        //                        indexAuxI++;
+
+        //                        //RESERVED
+        //                        indexAuxI++;
+
+        //                        //RESERVED
+        //                        indexAuxI++;
+
+        //                        //safety
+
+        //                        INPUTS.EMERGENCIA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
+        //                        INPUTS.FECHO_CAMERA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
+        //                        INPUTS.FECHO_ILUMINACAO = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
+        //                        INPUTS.FECHO_ROBOT = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
+        //                        INPUTS.FECHO_ECRA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
+        //                        INPUTS.BARREIRA_APROVADAS = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
+        //                        INPUTS.BARREIRA_REPROVADAS = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
+        //                        INPUTS.RESERVA_1000_7 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
+        //                        indexAuxI++;
+
+        //                        //RESERVA BYTE
+        //                        indexAuxI++;
+        //                        #endregion
+
+        //                        #region Read Tags
+        //                        DB400.INF_ALL_INIT_POS_OK = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
+        //                        DB400.INF_RECEITA_CARREGADA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
+        //                        DB400.INF_TRANSPORTER_READY = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
+        //                        DB400.INF_ROBO_READY = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
+        //                        DB400.ALL_DOORS_CLOSED = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
+        //                        DB400.READY_TO_AUTO = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
+        //                        DB400.MANUAL_AUTO = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
+        //                        DB400.CYCLE_ON = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
+        //                        indexAuxI++;
+
+        //                        DB400.USER_SESSION_ACTIVE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
+        //                        DB400.CLOCK_1HZ = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
+        //                        DB400.CLOCK_2HZ = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
+        //                        DB400.CLOCK_5HZ = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
+        //                        DB400.CLOCK_10HZ = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
+        //                        DB400.BYPASS_SECURITY = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
+        //                        DB400.VISION_LIGHT_ON = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
+        //                        DB400.CAM_TRIGGER_MODE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
+        //                        indexAuxI++;
+
+        //                        DB400.CAM_ORD_TRIGGER = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
+        //                        DB400.FECHO_CAM_CLOSED = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
+        //                        DB400.FECHO_ILUMINACAO_CLOSED = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
+        //                        DB400.FECHO_ROBOT_CLOSED = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
+        //                        DB400.FECHO_ECRA_CLOSED = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
+        //                        DB400.FECHO_BARREIRA_APROV_CLOSED = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
+        //                        DB400.FECHO_BARREIRA_REPROV_CLOSED = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
+        //                        DB400.CARREGAMENTO_EM_CURSO = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
+        //                        indexAuxI++;
+
+        //                        DB400.DESCARGA_OK_EM_CURSO = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
+        //                        DB400.DESCARGA_NOK_EM_CURSO = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
+        //                        DB400.DESCARGA_OK_FULL = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
+        //                        DB400.DESCARGA_NOK_FULL = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
+        //                        DB400.SEQUENCIA_NOK = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
+        //                        DB400.STOP_BARREIRA_APROVADOS = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
+        //                        DB400.STOP_BARREIRA_REPROVADOS = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
+        //                        DB400.CAIXA_PRESENTE_APROVADOS = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
+        //                        indexAuxI++;
+
+        //                        DB400.CAIXA_PRESENTE_REPROVADOS = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
+        //                        DB400.EMERGENCIA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
+        //                        DB400.CON_GRAB_CONVOYER = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
+        //                        DB400.CON_TAKE_INSPECTION = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
+        //                        DB400.CON_APROVE_KNIFE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
+        //                        DB400.CON_REPROVE_KNIFE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
+        //                        DB400.CON_INI_POSITION = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
+        //                        DB400.TRANSPORTADOR_COM_FACA = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
+        //                        indexAuxI++;
+
+        //                        DB400.RESERVA_BYTE_41 = Convert.ToByte(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
+
+        //                        indexAuxI += DB400.INSPECTION_RESULT.UpdateTags(DB400_HMI.ToArray(), indexAuxI);
+
+        //                        DB400.RESERVED_INT = Convert.ToUInt16(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
+
+        //                        DB400.TOTAL_APROVED_BY_BOX = Convert.ToInt32(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
+        //                        DB400.TOTAL_REPROVED_BY_BOX = Convert.ToInt32(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
+        //                        DB400.TOTAL_APROVED = Convert.ToInt32(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
+        //                        DB400.TOTAL_REPROVED = Convert.ToInt32(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
+        //                        DB400.LOTE_TOTAL_NUMBER = Convert.ToInt32(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
+        //                        DB400.SEQUENCE_REPROVED = Convert.ToInt32(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
+
+        //                        indexAuxI += DB400.MOTOR_PASSADEIRA.UpdateTags(DB400_HMI.ToArray(), indexAuxI);
+
+        //                        // 0 - SEM COMANDOS / 1 - ORDEM / 2 - / 3 - 
+        //                        DB400.CILINDRO_INDEXACAO = Convert.ToByte(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
+        //                        DB400.PORTA_DIREITA = Convert.ToByte(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
+        //                        DB400.PORTA_ESQUERDA = Convert.ToByte(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
+
+        //                        DB400.STA_GRAB_CONVOYER = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
+        //                        DB400.STA_TAKE_INSPECTION = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
+        //                        DB400.STA_APROVE_KNIFE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
+        //                        DB400.STA_REPROVE_KNIFE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
+        //                        DB400.STA_INI_POSITION = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
+        //                        DB400.STA_SAFE_POSITION = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
+        //                        DB400.ALM_GRAB_CONVOYER = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
+        //                        DB400.ALM_TAKE_INSPECTION = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
+        //                        indexAuxI++;
+
+        //                        DB400.ALM_APROVE_KNIFE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(0));
+        //                        DB400.ALM_REPROVE_KNIFE = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(1));
+        //                        DB400.ALM_INI_POSITION = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(2));
+        //                        DB400.RESERVA_104_3 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(3));
+        //                        DB400.RESERVA_104_4 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(4));
+        //                        DB400.RESERVA_104_5 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(5));
+        //                        DB400.RESERVA_104_6 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(6));
+        //                        DB400.RESERVA_104_7 = Convert.ToBoolean(DB400_HMI[indexAuxI].ObtemVariavel(7));
+        //                        indexAuxI++;
+
+        //                        DB400.PECAS_ULTIMA_HORA = Convert.ToUInt16(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
+        //                        DB400.PECAS_MEDIA_HORA = Convert.ToUInt16(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
+        //                        DB400.TEMPO_DE_CICLO = Convert.ToUInt16(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
+
+        //                        DB400.COUNTER_KNIFES_ENGRAVED = Convert.ToUInt16(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
+        //                        DB400.SUB_COUNTER_KNIFES = Convert.ToUInt16(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
+        //                        DB400.KNIFES_TO_ENGRAVE = Convert.ToUInt16(DB400_HMI[indexAuxI].ObtemVariavel()); indexAuxI++;
+
+        //                        #endregion
+
+        //                        this.errRead = false;
+        //                    }
+        //                    else
+        //                        //EJ-COMENT
+        //                        //throw new Exception("Reading Error!");
+        //                        Debug.WriteLine("CicloPLC() - Processa Entradas: ERRO");
+        //                }
+        //                catch (Exception ex)
+        //                {
+        //                    Debug.WriteLine("CicloPLC() - Processa Entradas: " + ex.Message);
+        //                    this.errRead = true;
+        //                }
+        //                finally
+        //                {
+        //                    this.ReadTime = (int)this.PLC1.TempoCicloDecorrido;
+        //                    this.State = 2;
+        //                }
+        //                #endregion
+
+        //                #region Processa as Saídas
+        //                //**************************** PROCESSA AS SAÍDAS ******************************
+        //                try
+        //                {
+        //                    this.errWrite = !this.PLC1.ProcessaListagemEscrita();
+        //                }
+        //                catch (Exception ex)
+        //                {
+        //                    Debug.WriteLine("CicloPLC() - Processa Saídas: " + ex.Message);
+        //                    this.errWrite = true;
+        //                }
+        //                finally
+        //                {
+        //                    this.WriteTime = (int)this.PLC1.TempoCicloDecorrido - this.ReadTime;
+        //                    this.State = 3;
+        //                }
+        //                //******************************************************************************
+        //                #endregion
+
+        //                //FP do Botão de Reset, para os alarmes ativos
+        //                if (INPUTS.BTN_RESET && !fpAckAlarms)
+        //                {
+        //                    fpAckAlarms = true;
+        //                    this.RESET_ALARMES_ATIVOS = true;
+        //                }
+        //                else if (!INPUTS.BTN_RESET)
+        //                    fpAckAlarms = false;
+
+        //                //trigger a camera
+        //                if (this.Inspection != null) this.Inspection.EXTERNAL_TRIGGER = DB400.CAM_ORD_TRIGGER;
+
+        //                //a cada 1seg 
+        //                if (_1000msCycleTimer.IsReached)
+        //                {
+        //                    //envia o software OK
+        //                    this.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, true, 401, 6, 0);
+
+        //                    if (this.Inspection != null)
+        //                        if (this.Inspection.CameraAtiva != DB400.CAM_TRIGGER_MODE)//envia o status da camera para o PLC
+        //                            this.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Int, this.Inspection.CameraAtiva ? 2 : 0, this.Inspection.DbNumber, 6, 0);
+        //                }
+
+        //                if ((this.PLC1.EstadoLigacao && !VARIAVEIS.ESTADO_CONEXAO_PLC) || (_1000msCycleTimer.IsReached && lastHourUpdate != DateTime.Now.Hour))
+        //                {   //Atualizar a hora do PLC quando ganha comunicação com PLC ou a cada hora que passa
+        //                    lastHourUpdate = (byte)DateTime.Now.Hour;
+        //                    this.UpdatePLCTime();
+        //                }
+
+        //                //verifica se é necessário inserir na base de dados 
+        //                if (DB400.INSPECTION_RESULT.READ && (DB400.INSPECTION_RESULT.ID != this.VariaveisAuxiliares.LastInsertedID) && !this.VariaveisAuxiliares.AuxOrdInsertData)
+        //                {
+        //                    this.VariaveisAuxiliares.AuxOrdInsertData = true;
+
+        //                    new Thread(() => this.VariaveisAuxiliares.InsereRegistoBaseDados(DB400.INSPECTION_RESULT)).Start();
+        //                }
+
+        //                //Efetua o pedido de restart à comunicação com o PLC
+        //                if (this.PLC1.RestartRequested) this.PLC1.DisconnectFromPLC();
+
+        //                fpError = false; //clear flag error
+
+        //            }
+        //            catch (Exception ex)
+        //            {
+        //                #region Error Handling
+        //                if (!fpError)
+        //                {
+        //                    fpError = true;
+        //                    e = 0;
+        //                    Debug.WriteLine("PLC Cycle Error (i == " + e + "): " + ex.Message);
+        //                }
+        //                e++;
+        //                if (e % 5 == 0)
+        //                    Debug.WriteLine("PLC Cycle Error (i == " + e + "): " + ex.Message);
+        //                #endregion
+
+        //                this.State = 0;
+        //            }
+        //            finally
+        //            {
+        //                //Terminar a contagem do tempo de ciclo
+        //                this.PLC1.TerminaContagemTempoCiclo();
+
+        //                if (this.PLC1.TempoCicloAtual >= this.VariaveisAuxiliares.PlcCycleTime)
+        //                    this.SleepTime = 0;
+        //                else
+        //                    this.SleepTime = this.VariaveisAuxiliares.PlcCycleTime - this.PLC1.TempoCicloAtual;
+
+        //                VARIAVEIS.ESTADO_CONEXAO_PLC = this.PLC1.EstadoLigacao;
+        //            }
+
+        //        #region Simulação Clocks - se NAO HOUVER PLC COMUNICATION
+        //        //simula os clocks se nao houver comunicação com o PLC
+        //        if (!VARIAVEIS.ESTADO_CONEXAO_PLC)
+        //        {
+        //            DateTime dtNow = DateTime.Now;
+
+        //            if ((dtNow - simClocks[0]).TotalMilliseconds >= 1000)
+        //            {
+        //                DB400.CLOCK_1HZ = !DB400.CLOCK_1HZ;
+        //                simClocks[0] = dtNow;
+        //            }
+
+        //            if ((dtNow - simClocks[1]).TotalMilliseconds >= 500)
+        //            {
+        //                DB400.CLOCK_2HZ = !DB400.CLOCK_2HZ;
+        //                simClocks[1] = dtNow;
+        //            }
+
+        //            if ((dtNow - simClocks[2]).TotalMilliseconds >= 200)
+        //            {
+        //                DB400.CLOCK_5HZ = !DB400.CLOCK_5HZ;
+        //                simClocks[2] = dtNow;
+        //            }
+
+        //            if ((dtNow - simClocks[3]).TotalMilliseconds >= 100)
+        //            {
+        //                DB400.CLOCK_10HZ = !DB400.CLOCK_10HZ;
+        //                simClocks[3] = dtNow;
+        //            }
+        //        }
+        //        #endregion
+
+        //        //so processor can rest for a while
+        //        Thread.Sleep(5);
+        //    }
+
+        //    //Antes de encerrar a thread, desliga a comunicação com o PLC
+        //    if (PLC1 != null)
+        //        PLC1.DisconnectFromPLC();
+        //}
 
         private void AtualizaAnimacaoAlarmes()
         {
@@ -875,23 +876,25 @@ namespace _22079AI
             return null;
         }
 
+
+        //Este Timer NÂO é de 1Hz mas sim de 0.1Hz(100ms)
         private void Timer1Hz_Tick(object sender, EventArgs e)
         {
             if (VARIAVEIS.FORM_LOADED)
                 try
                 {
-                    Timer1Hz.Stop();
+                    Timer01Hz.Stop();
 
                     bool permissaoBotoes = this.VerificaAcesso(Sessao.SessaoOperador.Operador1, false) && VARIAVEIS.ESTADO_CONEXAO_PLC;
 
                     //Deteta as memorias de clock
-                    bool FP_CLOCK_1HZ = (DB400.CLOCK_1HZ != FP[0]) && DB400.CLOCK_1HZ;
-                    bool FP_CLOCK_2HZ = (DB400.CLOCK_2HZ != FP[1]) && DB400.CLOCK_2HZ;
+                    //bool FP_CLOCK_1HZ = (DB400.CLOCK_1HZ != FP[0]) && DB400.CLOCK_1HZ;
+                    //bool FP_CLOCK_2HZ = (DB400.CLOCK_2HZ != FP[1]) && DB400.CLOCK_2HZ;
 
-
+                    PlcControl.CmdCiclo.Vars.Reserved_2 = false;
                     //Atualiza o flash dos alarmes
-                    if (FP_CLOCK_1HZ)
-                        AtualizaAnimacaoAlarmes();
+                    //if (FP_CLOCK_1HZ)
+                    AtualizaAnimacaoAlarmes();
 
                     #region Ecrã Manual/Automático
                     if (DB400.MANUAL_AUTO && !this.fpManualAuto)
@@ -907,7 +910,7 @@ namespace _22079AI
                     #endregion
 
                     #region 2HZ Clock
-                    if (FP_CLOCK_2HZ)
+                    if (true)
                     {
                         #region Atualizar Bottom Bar
 
@@ -920,11 +923,11 @@ namespace _22079AI
                         lblNomeOperadorAtivo.Text = UserSession.NomeOperador;
 
                         //Tempo de ciclo PLC
-                        lblTempoDeCiclo.Text = Convert.ToString(PLC1.TempoCicloAtual) + " ms";
+                        //lblTempoDeCiclo.Text = Convert.ToString(PLC1.TempoCicloAtual) + " ms";
 
                         //PLC Led
-                        if (PLC1 != null)
-                            switch (PLC1.UltimoEstadoPLC)
+                        if (PlcControl != null)
+                            switch (PlcControl.PLC1.UltimoEstadoPLC)
                             {
                                 case Siemens.EstadoPLC.LigadoComLigacao:
                                     ledPlc.BackColor = Color.LimeGreen;
@@ -940,6 +943,8 @@ namespace _22079AI
                                     break;
                             }
 
+                        VARIAVEIS.ESTADO_CONEXAO_PLC = this.PlcControl.PLC1.EstadoLigacao;
+                        
                         //Led conexão c/ base de dados
                         Diversos.AtualizaBackColor(ledDB, VariaveisAuxiliares.DatabaseConnectionState, Color.LimeGreen, Color.Red);
 
@@ -1046,7 +1051,7 @@ namespace _22079AI
                         //pctDescarregaOK.Visible = DB400.DESCARGA_OK_EM_CURSO;
 
 
-                        if (FP_CLOCK_1HZ)
+                        if (true)
                         {
                             //contadores
                             //lblTotalFacasNOK.Text = VARIAVEIS.ESTADO_CONEXAO_PLC ? (DB400.TOTAL_REPROVED_BY_BOX.ToString() + "/" + this.Receita.SpNOK.ToString()) : "###/###";
@@ -1055,15 +1060,15 @@ namespace _22079AI
 
                             btnModoManual.Enabled = permissaoBotoes && !DB400.CYCLE_ON;
 
-                            label65.Text = VARIAVEIS.ESTADO_CONEXAO_PLC ? Convert.ToString(DB400.SUB_COUNTER_KNIFES) + " de " + Convert.ToString(DB400.KNIFES_TO_ENGRAVE) : PLC1.StringSemComunicacao;
+                            //label65.Text = VARIAVEIS.ESTADO_CONEXAO_PLC ? Convert.ToString(DB400.SUB_COUNTER_KNIFES) + " de " + Convert.ToString(DB400.KNIFES_TO_ENGRAVE) : PLC1.StringSemComunicacao;
 
                             // tempo de ciclo
                             //label22.Text = VARIAVEIS.ESTADO_CONEXAO_PLC ? DB400.TEMPO_DE_CICLO.ToString() + " Seg" : "### Seg";
                             //labelTotal.Text = VARIAVEIS.ESTADO_CONEXAO_PLC ? Convert.ToString(DB400.COUNTER_KNIFES_ENGRAVED) : PLC1.StringSemComunicacao;
 
-                            labelTotal.Text = VARIAVEIS.ESTADO_CONEXAO_PLC ? Convert.ToString(DB400.TOTAL_APROVED+ DB400.TOTAL_REPROVED) : PLC1.StringSemComunicacao;
-                            labelTotalReprovadas.Text = VARIAVEIS.ESTADO_CONEXAO_PLC ? Convert.ToString(DB400.TOTAL_REPROVED) : PLC1.StringSemComunicacao;
-                            labelTotalAprovadas.Text = VARIAVEIS.ESTADO_CONEXAO_PLC ? Convert.ToString(DB400.TOTAL_APROVED) : PLC1.StringSemComunicacao;
+                            //labelTotal.Text = VARIAVEIS.ESTADO_CONEXAO_PLC ? Convert.ToString(DB400.TOTAL_APROVED+ DB400.TOTAL_REPROVED) : PLC1.StringSemComunicacao;
+                            //labelTotalReprovadas.Text = VARIAVEIS.ESTADO_CONEXAO_PLC ? Convert.ToString(DB400.TOTAL_REPROVED) : PLC1.StringSemComunicacao;
+                            //labelTotalAprovadas.Text = VARIAVEIS.ESTADO_CONEXAO_PLC ? Convert.ToString(DB400.TOTAL_APROVED) : PLC1.StringSemComunicacao;
 
                             //ledRobot1.On = DB400.INF_ROBO_READY;
                             //ledRobot2.On = INPUTS.SEN_ROBOT_GARRA_ABERTA;
@@ -1087,7 +1092,7 @@ namespace _22079AI
 
                     #region Atualizar Resultados de Inspeção
 
-                    if (FP_CLOCK_1HZ && pnlSemConexao.Visible)
+                    if (true && pnlSemConexao.Visible)
                         if (label16.ForeColor == Color.DarkOrange)
                             label16.ForeColor = Color.Red;
                         else
@@ -1101,7 +1106,7 @@ namespace _22079AI
                     //label8.Visible = this.Inspection.ErroInspecao;
                     //label8.Text = this.Inspection.MensagemErro;
 
-                    if (FP_CLOCK_2HZ)
+                    if (true)
                     {
                         button4.Visible = button10.Visible = button13.Visible = button14.Visible = this.VerificaAcesso(Sessao.SessaoOperador.SuperAdministrador, false);
                         label6.Visible = label10.Visible = lblTempoAcquisicao.Visible = lblTempoInspecao.Visible = this.VerificaAcesso(Sessao.SessaoOperador.Administrador, false);
@@ -1280,10 +1285,11 @@ namespace _22079AI
                     GC.Collect(); //** para limpar as imagens anteriores da picturebox da imagem adquirida
 
                     if (VARIAVEIS.FLAG_WHILE_CYCLE)
-                        Timer1Hz.Start();
+                        Timer01Hz.Start();
                 }
         }
 
+        //Timer de 10ms
         private void timer1_Tick(object sender, EventArgs e)
         {
             if (this.VariaveisAuxiliares.AuxOrdInsertData)
@@ -1542,8 +1548,7 @@ namespace _22079AI
             if (DB400.MANUAL_AUTO)
                 if (new CaixaMensagem("Deseja ir para o modo manual?", "Modo Manual", CaixaMensagem.TipoMsgBox.Question).ShowDialog() == DialogResult.Yes)
                 {
-                    PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, false, 20, 0, 2);//Enviar a informação ao PLC
-                    PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, false, 400, 36, 6);//Enviar a informação ao PLC
+                    PlcControl.CmdCiclo.Vars.ManualRequest = true;
                 }
         }
 
@@ -1554,9 +1559,7 @@ namespace _22079AI
                 //Apresentar a janela de passagem para modo automático
                 if (new ModoAutomatico().ShowDialog() == DialogResult.Yes)
                 {
-                    PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, true, 20, 0, 2);  //Fazer set ao MANUAL_AUTO
-                    PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, true, 400, 36, 6);//Enviar a informação ao PLC
-
+                    PlcControl.CmdCiclo.Vars.AutoRequest = true;
                 }
 
         }
@@ -1822,8 +1825,6 @@ namespace _22079AI
 
         private void button4_Click(object sender, EventArgs e)
         {
-            if (PLC1 != null)
-                PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, !DB400.VISION_LIGHT_ON, 20, 0, 7); //Alterna o estado da iluminação
 
         }
 
@@ -1898,8 +1899,13 @@ namespace _22079AI
 
         private void button2_Click_1(object sender, EventArgs e)
         {
-            if (new CaixaMensagem("Limpar Contador Total de Discos?", "Limpar Contador", CaixaMensagem.TipoMsgBox.Question).ShowDialog() == DialogResult.Yes)
-                Forms.MainForm.PLC1.EnviaTag(PLC.Siemens.MemoryArea.DB, PLC.Siemens.TipoVariavel.Bool, true, 45, 2, 5);
+            
+           // if (new CaixaMensagem("Limpar Contador Total de Discos?", "Limpar Contador", CaixaMensagem.TipoMsgBox.Question).ShowDialog() == DialogResult.Yes) 
+            PlcControl.CmdCiclo.Vars.Reserved_2 = true;
+            Inspection.numberInspThreads = 0;
+            Inspection.numberAqThreads = 0;
+            PlcControl.HmiPlcNewDisc.menber.ID = 0;
+            PlcControl.HmiPlcFeedbackdisc.menber.ID = 0;
         }
 
         private void Button4_Click_1(object sender, EventArgs e)
@@ -1932,7 +1938,7 @@ namespace _22079AI
 
         private void BtnTrigger_Click(object sender, EventArgs e)
         {
-            this.Inspection.FazTriggerPLC();
+
         }
 
         private void DgvUltimosAneisProcessados_SelectionChanged(object sender, EventArgs e)
@@ -1970,41 +1976,22 @@ namespace _22079AI
 
         private void Button29_Click(object sender, EventArgs e)
         {
-            //Abre Direita
-            Forms.MainForm.PLC1.EnviaTag(PLC.Siemens.MemoryArea.DB, PLC.Siemens.TipoVariavel.Bool, true, 12, 4, 3);
-            //Abre Esquerda
-            Forms.MainForm.PLC1.EnviaTag(PLC.Siemens.MemoryArea.DB, PLC.Siemens.TipoVariavel.Bool, true, 11, 4, 3);
 
         }
 
         private void Button30_Click(object sender, EventArgs e)
         {
-            //Fecha Esquerda
-            Forms.MainForm.PLC1.EnviaTag(PLC.Siemens.MemoryArea.DB, PLC.Siemens.TipoVariavel.Bool, true, 11, 4, 4);
-            //Fecha Direita
-            Forms.MainForm.PLC1.EnviaTag(PLC.Siemens.MemoryArea.DB, PLC.Siemens.TipoVariavel.Bool, true, 12, 4, 4);
 
         }
 
         private void Button27_Click(object sender, EventArgs e)
         {
-            if (button27.BackColor != Color.Transparent)
-                //Fecha Esquerda
-                Forms.MainForm.PLC1.EnviaTag(PLC.Siemens.MemoryArea.DB, PLC.Siemens.TipoVariavel.Bool, true, 11, 4, 4);
-            else
-                //Abre Esquerda
-                Forms.MainForm.PLC1.EnviaTag(PLC.Siemens.MemoryArea.DB, PLC.Siemens.TipoVariavel.Bool, true, 11, 4, 3);
 
         }
 
         private void Button28_Click(object sender, EventArgs e)
         {
-            if (button28.BackColor != Color.Transparent)
-                //Fecha Direita
-                Forms.MainForm.PLC1.EnviaTag(PLC.Siemens.MemoryArea.DB, PLC.Siemens.TipoVariavel.Bool, true, 12, 4, 4);
-            else
-                //Abre Direita
-                Forms.MainForm.PLC1.EnviaTag(PLC.Siemens.MemoryArea.DB, PLC.Siemens.TipoVariavel.Bool, true, 12, 4, 3);
+
         }
 
 
@@ -2012,34 +1999,34 @@ namespace _22079AI
         {
             try
             {
-                //TODO verificar o porque do codigo enpancar no ShowDialog
-                if (DB400.DESCARGA_OK_FULL && !VARIAVEIS.FP_JANELAS_AUTOMATICO[0])
-                { 
-                VARIAVEIS.FP_JANELAS_AUTOMATICO[0] = DB400.DESCARGA_OK_FULL;
-                new MensagemCaixaCheia(TipoCaixa.Aprovados).ShowDialog();
-                 }
+                ////TODO verificar o porque do codigo enpancar no ShowDialog
+                //if (DB400.DESCARGA_OK_FULL && !VARIAVEIS.FP_JANELAS_AUTOMATICO[0])
+                //{ 
+                //VARIAVEIS.FP_JANELAS_AUTOMATICO[0] = DB400.DESCARGA_OK_FULL;
+                //new MensagemCaixaCheia(TipoCaixa.Aprovados).ShowDialog();
+                // }
 
-                if (DB400.DESCARGA_NOK_FULL && !VARIAVEIS.FP_JANELAS_AUTOMATICO[1])
-                {
-                    VARIAVEIS.FP_JANELAS_AUTOMATICO[1] = DB400.DESCARGA_NOK_FULL;
-                    new MensagemCaixaCheia(TipoCaixa.Reprovados).ShowDialog();
-                }
-                if (DB400.STOP_BARREIRA_APROVADOS && !VARIAVEIS.FP_JANELAS_AUTOMATICO[2])
-                {
-                    VARIAVEIS.FP_JANELAS_AUTOMATICO[2] = DB400.STOP_BARREIRA_APROVADOS;
-                    new MensagemBarreiras(TipoCaixa.Aprovados).ShowDialog();
-                }
-                if (DB400.STOP_BARREIRA_REPROVADOS && !VARIAVEIS.FP_JANELAS_AUTOMATICO[3])
-                {
-                    VARIAVEIS.FP_JANELAS_AUTOMATICO[3] = DB400.STOP_BARREIRA_REPROVADOS;
-                    new MensagemBarreiras(TipoCaixa.Reprovados).ShowDialog();
-                }
+                //if (DB400.DESCARGA_NOK_FULL && !VARIAVEIS.FP_JANELAS_AUTOMATICO[1])
+                //{
+                //    VARIAVEIS.FP_JANELAS_AUTOMATICO[1] = DB400.DESCARGA_NOK_FULL;
+                //    new MensagemCaixaCheia(TipoCaixa.Reprovados).ShowDialog();
+                //}
+                //if (DB400.STOP_BARREIRA_APROVADOS && !VARIAVEIS.FP_JANELAS_AUTOMATICO[2])
+                //{
+                //    VARIAVEIS.FP_JANELAS_AUTOMATICO[2] = DB400.STOP_BARREIRA_APROVADOS;
+                //    new MensagemBarreiras(TipoCaixa.Aprovados).ShowDialog();
+                //}
+                //if (DB400.STOP_BARREIRA_REPROVADOS && !VARIAVEIS.FP_JANELAS_AUTOMATICO[3])
+                //{
+                //    VARIAVEIS.FP_JANELAS_AUTOMATICO[3] = DB400.STOP_BARREIRA_REPROVADOS;
+                //    new MensagemBarreiras(TipoCaixa.Reprovados).ShowDialog();
+                //}
 
-                if (DB400.SEQUENCIA_NOK && !VARIAVEIS.FP_JANELAS_AUTOMATICO[4])
-                {
-                    VARIAVEIS.FP_JANELAS_AUTOMATICO[4] = DB400.SEQUENCIA_NOK;
-                    new MensagemSequenciaReprovados().ShowDialog();
-                }
+                //if (DB400.SEQUENCIA_NOK && !VARIAVEIS.FP_JANELAS_AUTOMATICO[4])
+                //{
+                //    VARIAVEIS.FP_JANELAS_AUTOMATICO[4] = DB400.SEQUENCIA_NOK;
+                //    new MensagemSequenciaReprovados().ShowDialog();
+                //}
 
 
             }
@@ -2066,8 +2053,8 @@ namespace _22079AI
                 {
                     form.ShowDialog();
 
-                    if (form.ValorSubmetido)
-                        PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.DInt, Convert.ToInt32(form.Valor), 23, 8);
+                    if (form.ValorSubmetido);
+                        //PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.DInt, Convert.ToInt32(form.Valor), 23, 8);
                 }
         }
 
@@ -2075,7 +2062,7 @@ namespace _22079AI
 
         private void Button35_Click(object sender, EventArgs e)
         {
-            Forms.MainForm.PLC1.EnviaTag(PLC.Siemens.MemoryArea.DB, PLC.Siemens.TipoVariavel.Bool, true, 45, 2, 4);
+            //Forms.MainForm.PLC1.EnviaTag(PLC.Siemens.MemoryArea.DB, PLC.Siemens.TipoVariavel.Bool, true, 45, 2, 4);
         }
 
 
@@ -2091,7 +2078,7 @@ namespace _22079AI
 
         private void Button5_Click_1(object sender, EventArgs e)
         {
-            this.PLC1.EnviaTag(Siemens.MemoryArea.M, Siemens.TipoVariavel.Bool, !DB400.BYPASS_SECURITY, 0, 101, 1);
+            //this.PLC1.EnviaTag(Siemens.MemoryArea.M, Siemens.TipoVariavel.Bool, !DB400.BYPASS_SECURITY, 0, 101, 1);
         }
 
     }

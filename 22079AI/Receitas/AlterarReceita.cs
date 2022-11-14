@@ -108,7 +108,7 @@ namespace _22079AI
                 if (Forms.MainForm.Receita.AtualizaReceita(Convert.ToInt32(dgvReceitas.SelectedRows[0].Cells[0].Value), Forms.MainForm.UserSession.IDOperador, string.Empty, DateTime.Now, true))
                 {
                     //Enviar para o PLC a flag de nova receita
-                    Forms.MainForm.PLC1.EnviaTag(PLC.Siemens.MemoryArea.DB, PLC.Siemens.TipoVariavel.Bool, true, 20, 4, 0);
+                    //Forms.MainForm.PLC1.EnviaTag(PLC.Siemens.MemoryArea.DB, PLC.Siemens.TipoVariavel.Bool, true, 20, 4, 0);
 
                     //limpa os aneis processados
                     Forms.MainForm.dgvUltimosAneisProcessados.Rows.Clear();

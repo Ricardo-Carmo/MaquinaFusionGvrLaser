@@ -183,12 +183,6 @@
     </Compile>
     <Compile Include="Controlos\Outros\Alarmes.cs" />
     <Compile Include="Controlos\Outros\LogFile.cs" />
-    <Compile Include="Manual\Inspecao.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Manual\Inspecao.designer.cs">
-      <DependentUpon>Inspecao.cs</DependentUpon>
-    </Compile>
     <Compile Include="Manual\Passadeira.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -219,24 +213,6 @@
     </Compile>
     <Compile Include="Outros\LoadingForm.designer.cs">
       <DependentUpon>LoadingForm.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Outros\MensagemBarreiras.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Outros\MensagemBarreiras.designer.cs">
-      <DependentUpon>MensagemBarreiras.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Outros\MensagemCaixaCheia.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Outros\MensagemCaixaCheia.designer.cs">
-      <DependentUpon>MensagemCaixaCheia.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Outros\MensagemSequenciaReprovados.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="Outros\MensagemSequenciaReprovados.designer.cs">
-      <DependentUpon>MensagemSequenciaReprovados.cs</DependentUpon>
     </Compile>
     <Compile Include="Outros\ModoAutomatico.cs">
       <SubType>Form</SubType>
@@ -313,9 +289,6 @@
     <EmbeddedResource Include="MainForm.resx">
       <DependentUpon>MainForm.cs</DependentUpon>
     </EmbeddedResource>
-    <EmbeddedResource Include="Manual\Inspecao.resx">
-      <DependentUpon>Inspecao.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="Manual\Passadeira.resx">
       <DependentUpon>Passadeira.cs</DependentUpon>
     </EmbeddedResource>
@@ -330,15 +303,6 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Outros\LoadingForm.resx">
       <DependentUpon>LoadingForm.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Outros\MensagemBarreiras.resx">
-      <DependentUpon>MensagemBarreiras.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Outros\MensagemCaixaCheia.resx">
-      <DependentUpon>MensagemCaixaCheia.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="Outros\MensagemSequenciaReprovados.resx">
-      <DependentUpon>MensagemSequenciaReprovados.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Outros\ModoAutomatico.resx">
       <DependentUpon>ModoAutomatico.cs</DependentUpon>

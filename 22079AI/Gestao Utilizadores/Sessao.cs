@@ -33,7 +33,6 @@ namespace _22079AI
             {
                 return (sessaoIniciada) ? this.nomeOperador : "Sem Sessão";
             }
-
         }
 
         public bool SessaoIniciada
@@ -163,10 +162,8 @@ namespace _22079AI
 
         private void AtualizaSessaoPLC()
         {
-            if (Forms.MainForm.PLC1 != null && VARIAVEIS.ESTADO_CONEXAO_PLC)
-                Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Byte, nivelSessao, 20, 22);
-
+            if (Forms.MainForm.PlcControl != null && VARIAVEIS.ESTADO_CONEXAO_PLC)
+                Forms.MainForm.PlcControl.CmdCiclo.Vars.NivelSessao = nivelSessao;
         }
-
     }
 }

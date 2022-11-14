@@ -12,13 +12,19 @@ using System.Drawing;
 using System.Windows.Forms;
 using System.ComponentModel;
 using PLC;
+using System.Drawing.Text;
 
 namespace _22079AI
 {
     public class InspLateralDiscos
     {
+        //0 - nao processado
+        //1 - OK
+        //2 - Erro de inspeção
+        //3 - NOK
         private object aqcLock = new object();
         private object inspLock = new object();
+        private object ThreadLock = new object();
 
         //Estados da classe
         private bool isAlive = true;
@@ -34,6 +40,8 @@ namespace _22079AI
 
         private int numMaximoPastaImagens = 50;
 
+        public double numberAqThreads = 0;
+        public double numberInspThreads = 0;
 
         private bool guardarImagemFimInspecao = true;
         private int timeoutToInspection = -1;
@@ -92,6 +100,7 @@ namespace _22079AI
 
         public double AlturaFacaCamera { get { return Math.Round(this.alturaFacaCamera, 1); } }
 
+        List<DiscMenbers> ListaDiscosInspecionados = new List<DiscMenbers>();
 
         /// <summary>
         /// 0 - SEM RESULTADO / 1 - OK / 2 - OK INV (REWORK) / 3 - NOK
@@ -238,14 +247,37 @@ namespace _22079AI
 
         private bool LogHistoricoInspecoesEnabled = true;
 
+        private static readonly Object lockLista = new Object();
+
         public InspLateralDiscos(string ficheiroINI)
         {
             this.FicheiroIni = ficheiroINI;
 
-            if (!this.CarregarParametrosInspecao())
-                throw new Exception("Erro ao carregar parâmetros de inspeção!");
+            Forms.MainForm.PlcControl.CmdCiclo.Vars.VisonReady = this.CarregarParametrosInspecao();
 
             new Thread(this.AcquisitionCycle).Start();
+
+            new Thread(this.EnviaResultadosPLC).Start();
+        }
+
+        private void EnviaResultadosPLC()
+        {
+            while (this.isAlive)
+            {
+                if (ListaDiscosInspecionados.Count() > 0 && Forms.MainForm.PlcControl.PlcReadyForNewDIsc)
+                {
+                    lock (lockLista)
+                    {
+                        Forms.MainForm.PlcControl.HmiPlcNewDisc.writeClassValues(ListaDiscosInspecionados.First());
+                        ListaDiscosInspecionados.RemoveAt(0);
+
+                        Debug.WriteLine("### EnviaResultadosPLC - Enviou Resultado com ID: " + Forms.MainForm.PlcControl.HmiPlcNewDisc.menber.ID);
+                    }
+
+                }
+
+            }
+
         }
 
         public void FazTrigger()
@@ -254,11 +286,11 @@ namespace _22079AI
                 this.ordemTrigger = true;
         }
 
-        public void FazTriggerPLC()
-        {
-            if (!this.sistemaOff && !this.InspecaoEmCurso)
-                Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, true, this.DbNumber, 10, 2);
-        }
+        //public void FazTriggerPLC()
+        //{
+        //    if (!this.sistemaOff && !this.InspecaoEmCurso)
+        //        Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, true, this.DbNumber, 10, 2);
+        //}
 
         private void AdicionaRegistoLog(uint id, bool result, double value1, double value2, double value3, double value4, double value5)
         {
@@ -496,6 +528,7 @@ namespace _22079AI
             if (this.EstadoVisao)
                 try
                 {
+                    HOperatorSet.SetFramegrabberParam(acqHandle, "do_abort_grab", "true");
                     HOperatorSet.CloseFramegrabber(this.acqHandle);
                     this.acqHandle = null;
                     Debug.WriteLine("*** Camera desligada " + this.TipoInspecao + " ***");
@@ -511,19 +544,20 @@ namespace _22079AI
 
             return this.EstadoVisao = false;
         }
-
+        int NumeroThreads = 0;
         private void AcquisitionCycle()
         {
             bool firstCycle = true;
-
-            int inspNumber = 0;
+            this.numberAqThreads = 0;
+            this.numberInspThreads = 0;
+            
 
             while (this.isAlive)
                 try
                 {
                     //Verifica o estado da camera, caso esteja desligada tenta liga-la automaticamente
-                    if (!this.EstadoVisao && !firstCycle && !this.sistemaOff)
-                        this.IniciaCamera();
+                    if (!this.EstadoVisao && !this.sistemaOff)// (!this.EstadoVisao && !firstCycle && !this.sistemaOff)
+                        Forms.MainForm.PlcControl.CmdCiclo.Vars.CameraReady = this.IniciaCamera();
 
 
                     if (this.EstadoVisao && !this.sistemaOff) //acquisição contínua da imagem
@@ -533,7 +567,7 @@ namespace _22079AI
                             tempImg.GenEmptyObj();
 
                             //Adquire a imagem
-                                HOperatorSet.GrabImageAsync(out tempImg, this.acqHandle, -1);
+                            HOperatorSet.GrabImageAsync(out tempImg, this.acqHandle, -1);
 
                             //Roda a imagem, se necessário
                             if (this.offsetRotacao != 0)
@@ -546,27 +580,36 @@ namespace _22079AI
 
                             //Mostra a imagem live no ecrã
                             //Mostra a região
-                            if(FormularioReceita.FormActivo && Forms.MainForm.Receita.ID==FormularioReceita.IDRegisto)
+                            if (FormularioReceita.FormActivo && Forms.MainForm.Receita.ID == FormularioReceita.IDRegisto)
                                 regiaoPesquisaP2.X = FormularioReceita.compRegiao;
                             else
                                 regiaoPesquisaP2.X = Forms.MainForm.Receita.CompRegiaoInsp;
 
+
+
                             if (this.MostraRegiaoPesquisa)
                                 this.CamInsp.DisplayImage(HalconFunctions.HobjectToHimage(this.imagemAtual), this.regiaoPesquisaP1, this.regiaoPesquisaP2);
                             else
-                                this.CamLive.DisplayImage(this.imagemAtual, inspNumber++);
+                                this.CamLive.DisplayImage(this.imagemAtual, (int)this.numberInspThreads);
 
-
+                            this.numberInspThreads++;
                             //Vai buscar o ID ao PLC
                             //Envia a imagem e ID para a thread de inspeção
+                            NumeroThreads ++;
 
-                            if (!this.InspecaoEmCurso)
-                            {
-                                this.InspecaoEmCurso = true;
-                                new Thread(this.CallInspection).Start(); //inicia uma instância da inspeção
-                            }
+                            this.InspecaoEmCurso = true;
+                            //new Thread(this.CallInspection).Start(); //inicia uma instância da inspeção
+
+                            Debug.WriteLine("InspNumber antes da Thread: " + this.numberInspThreads);
+                            int Auxnumber = (int)this.numberInspThreads;
+                            HObject AuxImage = this.imagemAtual;
+                            Thread NewThread = new Thread(() => this.CallInspection(AuxImage, Auxnumber, (int)this.numberInspThreads));
+                            NewThread.Start();
 
 
+
+
+                           
                             //trigger à camera se não tiver em trigger
                             //if (!this.sistemaOff)
                             //    if (!this.InspecaoEmCurso && this.ordemTrigger)
@@ -585,7 +628,7 @@ namespace _22079AI
                             Debug.WriteLine("AcquisicaoImagem - CicloTrabalho(" + this.TipoInspecao + ") - DB50.MODO_VIDEO: " + ex.Message);
 
                             //em caso de falha desliga a camera
-                            this.DesligaCamera();
+                            //this.DesligaCamera();
                         }
 
                     if (this.EstadoVisao && this.sistemaOff) //caso tenha ordem para encerrar a camera!
@@ -621,135 +664,167 @@ namespace _22079AI
             }
         }
 
-        private void CallInspection()
+
+        private void CallInspection(HObject ImagemInInspecao, int InspNumber, int TotalInspNumber)
         {
-            lock (this.inspLock)
-                try
+            int _InspNumber = InspNumber;
+            HObject ImagemActInspecao = new HObject();
+            DateTime startTime = DateTime.Now, AuxDT;
+            //lock (this.inspLock)
+            try
+            {
+
+
+                this.InspecaoEmCurso = true;
+
+                this.ProcessaNovaOrdemInspecao();
+
+
+                //******* AQUISIÇÃO DA IMAGEM *******
+                this.AcquisicaoEmCurso = true;
+
+                lock (this.aqcLock)
+                { //copia a imagem atual para a imagem de inspecao
+                    HOperatorSet.CopyImage(ImagemInInspecao, out ImagemActInspecao);  //HOperatorSet.CopyImage(this.imagemAtual, out this.imagemInspecao);
+                    HOperatorSet.CopyImage(ImagemInInspecao, out this.imagemInspecao);
+                }
+
+                //limpa a janela
+                this.CamInsp.HWindow.ClearWindow();
+
+                //Mostra a imagem inspeção
+                this.CamInsp.DisplayImage(HalconFunctions.HobjectToHimage(ImagemActInspecao), 0, DateTime.MinValue);
+
+                //enviar o captura ok
+                //Debug.WriteLine("*** Imagem Elapsed Time " + this.TipoInspecao + " " + this.TipoInspecao + ": " + Convert.ToInt32((DateTime.Now - this.TempoInicioInspecao).TotalMilliseconds) + " ms ***");
+
+                //Enviar o sinal de captura efetuada
+                if (true) //DB55.DBX10.4 - DONE CAPTURE Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, true, this.DbNumber, 10, 4)
                 {
-                    this.InspecaoEmCurso = true;
+                    this.TempoAquisicao = Convert.ToInt32((DateTime.Now - this.TempoInicioInspecao).TotalMilliseconds);
+                    this.capturaOK = true;
+                    this.AcquisicaoEmCurso = false;
+                    //Debug.WriteLine("*** Sinal de Captura OK " + this.TipoInspecao + " enviado ***");
+                }
 
-                    this.ProcessaNovaOrdemInspecao();
-                   
-
-                    //******* AQUISIÇÃO DA IMAGEM *******
-                    this.AcquisicaoEmCurso = true;
-
-                    lock (this.aqcLock) //copia a imagem atual para a imagem de inspecao
-                        HOperatorSet.CopyImage(this.imagemAtual, out this.imagemInspecao);
-
-                    //limpa a janela
-                    this.CamInsp.HWindow.ClearWindow();
-
-                    //Mostra a imagem inspeção
-                    this.CamInsp.DisplayImage(HalconFunctions.HobjectToHimage(this.imagemInspecao), 0, DateTime.MinValue);
-
-                    //enviar o captura ok
-                    Debug.WriteLine("*** Imagem Elapsed Time " + this.TipoInspecao + " " + this.TipoInspecao + ": " + Convert.ToInt32((DateTime.Now - this.TempoInicioInspecao).TotalMilliseconds) + " ms ***");
-
-                    //Enviar o sinal de captura efetuada
-                    if (true) //DB55.DBX10.4 - DONE CAPTURE Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, true, this.DbNumber, 10, 4)
+                //******* INSPEÇÃO DA IMAGEM *******
+                if (true)// if (this.InspecaoEmCurso && this.capturaOK)
+                {
+                    #region Gravar a imagem ** Se tiver ordem para gravar a imagem antes da inspeção **
+                    //Se tiver ordem para gravar a imagem antes da inspeção
+                    try
                     {
-                        this.TempoAquisicao = Convert.ToInt32((DateTime.Now - this.TempoInicioInspecao).TotalMilliseconds);
-                        this.capturaOK = true;
-                        this.AcquisicaoEmCurso = false;
-                        Debug.WriteLine("*** Sinal de Captura OK " + this.TipoInspecao + " enviado ***");
-                        idFaca = DB400.INSPECTION_RESULT.ID + 1;
-                    }
-
-                    //******* INSPEÇÃO DA IMAGEM *******
-                    if (this.InspecaoEmCurso && this.capturaOK)
-                    {
-                        #region Gravar a imagem ** Se tiver ordem para gravar a imagem antes da inspeção **
-                        //Se tiver ordem para gravar a imagem antes da inspeção
-                        try
-                        {
-                            if (this.saveImage && !this.guardarImagemFimInspecao)
-                            {
-                                //Cria o caminho geral do diretório das imagens
-                                //string filename = this.TempoInicioInspecao.ToString("dd-MM-yyyy") + "_" + this.TempoInicioInspecao.ToString("HH-mm-ss") + "_" + this.TipoInspecao + ".bmp";
-
-                                string filename = DB400.INSPECTION_RESULT.ID.ToString() + "_" + this.TempoInicioInspecao.ToString("dd-MM-yyyy") + "_" + this.TempoInicioInspecao.ToString("HH-mm-ss") + "_" + this.TipoInspecao + ".bmp";
-                                
-                                //Juntas o diretório num só
-                                this.imageFullPath = this.diretorioImagens + filename;
-
-                                //Em thread, grava a imagem adquirida, de acordo com o metodo pretendido
-                                if (this.saveImgByHalcon)
-                                    new Thread(() => this.GravaImagem1(this.imagemInspecao.Clone(), this.imageFullPath)).Start();
-                                else
-                                    new Thread(() => this.GravaImagem2(this.imagemInspecao.Clone(), this.imageFullPath)).Start();
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine("CallInspection() - Gravar a imagem: " + ex.Message);
-                        }
-
-                        #endregion
-
-                        //prepara outputs da função da inspeção
-                        bool erroInspecao = false, facaDetetada = false;
-                        string msgInspecao = string.Empty;
-                        double comprimentoFaca = 0, amplitudeDesvioSuperior = 0, amplitudeDesvioInferior = 0, posMaxDesvioSuperior = 0, posMaxDesvioInferior = 0;
-
-                        //Chamar o módulo de inspeção
-                        this.CallInspectionScript(this.imagemInspecao, this.AlturaFacaCamera, Forms.MainForm.Receita.CompRegiaoInsp, this.InspecoesSimuladas, out facaDetetada, out comprimentoFaca, out amplitudeDesvioSuperior, out posMaxDesvioSuperior, out amplitudeDesvioInferior, out posMaxDesvioInferior, out erroInspecao, out msgInspecao);
-
-                        //Processar os dados obtidos da visão
-                        if (this.ResultadosForcados == 0)
-                            this.ProcessaDadosInspecao(facaDetetada, comprimentoFaca, amplitudeDesvioSuperior, posMaxDesvioSuperior, amplitudeDesvioInferior, posMaxDesvioInferior, erroInspecao, msgInspecao);
-                        else
-                            this.ResultadoInspecao = this.ResultadosForcados == 1 ? 1 : 3; //força OK / NOK consoante o valor 'ResultadosForcados'
-
-                        //mostra o resultado na imagem da inspeção
-                        this.CamInsp.UpdateStatus(this.ErroInspecao ? LabelStatus.ErroInspecao : (LabelStatus)this.ResultadoInspecao);
-
-                        //Enviar os resultados no PLC - Processa o fim da inspeção
-                        this.ProcessaFimInspecaoPLC();
-
-                        Forms.MainForm.VariaveisAuxiliares.AuxOrdInsertData = true;
-
-
-                        #region Gravar a imagem ** Se tiver ordem para gravar a imagem apos A inspeção **
-                        //Se tiver ordem para gravar a imagem apos a inspeção
-                        if (this.saveImage && this.guardarImagemFimInspecao)
+                        if (this.saveImage && !this.guardarImagemFimInspecao)
                         {
                             //Cria o caminho geral do diretório das imagens
-                            //string filename = this.TempoInicioInspecao.ToString("dd-MM-yyyy") + "_" + this.TempoInicioInspecao.ToString("HH-mm-ss") + "_" + this.TipoInspecao + "_" + (this.ResultadoInspecao == 1 ? "OK" : "NOT_OK") + ".bmp";
+                            //string filename = this.TempoInicioInspecao.ToString("dd-MM-yyyy") + "_" + this.TempoInicioInspecao.ToString("HH-mm-ss") + "_" + this.TipoInspecao + ".bmp";
 
-                            //string filename = "ID" + idFaca.ToString() + "_" + Diversos.NumberToString(DB400.INSPECTION_RESULT.AMPLITUDE_DESVIO, 2, true) + "_" + Diversos.NumberToString(DB400.INSPECTION_RESULT.POS_MAX_DESVIO, 2, true) + "_" + this.TempoInicioInspecao.ToString("dd-MM-yyyy") + "_" + this.TempoInicioInspecao.ToString("HH-mm-ss") + "_" + (this.ResultadoInspecao == 1 ? "OK" : "NOT_OK") + ".bmp";
-                            string filename = "ID" + idFaca.ToString() + "_" + Diversos.NumberToString(comprimentoFaca, 2, true) + "_" + Diversos.NumberToString(amplitudeDesvioSuperior, 2, true) + "_"+ Diversos.NumberToString(posMaxDesvioSuperior, 2, true) + "_" + this.TempoInicioInspecao.ToString("dd-MM-yyyy") + "_" + this.TempoInicioInspecao.ToString("HH-mm-ss");
+                            string filename = DB400.INSPECTION_RESULT.ID.ToString() + "_" + this.TempoInicioInspecao.ToString("dd-MM-yyyy") + "_" + this.TempoInicioInspecao.ToString("HH-mm-ss") + "_" + this.TipoInspecao + ".bmp";
 
                             //Juntas o diretório num só
                             this.imageFullPath = this.diretorioImagens + filename;
 
                             //Em thread, grava a imagem adquirida, de acordo com o metodo pretendido
                             if (this.saveImgByHalcon)
-                                new Thread(() => this.GravaImagem1(this.imagemInspecao.Clone(), this.imageFullPath)).Start();
+                                new Thread(() => this.GravaImagem1(ImagemActInspecao.Clone(), this.imageFullPath)).Start();
                             else
-                                new Thread(() => this.GravaImagem2(this.imagemInspecao.Clone(), this.imageFullPath)).Start();
+                                new Thread(() => this.GravaImagem2(ImagemActInspecao.Clone(), this.imageFullPath)).Start();
                         }
-                        #endregion
                     }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine("CallInspection(): " + ex.Message);
-                }
-                finally
-                {
-                    this.inspecaoOK = true;
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine("CallInspection() - Gravar a imagem: " + ex.Message);
+                    }
 
-                    this.AcquisicaoEmCurso = this.InspecaoEmCurso = false;
+                    #endregion
 
-                    //Dá a indicação ao HMI que temos um novo anel processado
-                    this.NovoAnelProcessado = true;
+                    //prepara outputs da função da inspeção
+                    bool erroInspecao = false, facaDetetada = false;
+                    string msgInspecao = string.Empty;
+                    double comprimentoFaca = 0, amplitudeDesvioSuperior = 0, amplitudeDesvioInferior = 0, posMaxDesvioSuperior = 0, posMaxDesvioInferior = 0;
 
-                    GC.Collect(); //chama o coletor de memoria apos cada inspecao
+                    //Chamar o módulo de inspeção
+                    this.CallInspectionScript(ImagemActInspecao, this.ResultadoInspecao, Forms.MainForm.Receita.CompRegiaoInsp, this.InspecoesSimuladas, out facaDetetada, out comprimentoFaca, out amplitudeDesvioSuperior, out posMaxDesvioSuperior, out amplitudeDesvioInferior, out posMaxDesvioInferior, out erroInspecao, out msgInspecao);
+
+                    //Processar os dados obtidos da visão
+                    if (this.ResultadosForcados == 0)
+                        this.ProcessaDadosInspecao(facaDetetada, comprimentoFaca, amplitudeDesvioSuperior, posMaxDesvioSuperior, amplitudeDesvioInferior, posMaxDesvioInferior, erroInspecao, msgInspecao);
+                    else
+                        this.ResultadoInspecao = this.ResultadosForcados == 1 ? 1 : 3; //força OK / NOK consoante o valor 'ResultadosForcados'
+
+                    //mostra o resultado na imagem da inspeção
+                    this.CamInsp.UpdateStatus(this.ErroInspecao ? LabelStatus.ErroInspecao : (LabelStatus)this.ResultadoInspecao);
+
+                    //Enviar os resultados no PLC - Processa o fim da inspeção
+
+
+                    Forms.MainForm.VariaveisAuxiliares.AuxOrdInsertData = true;
+
+
+                    #region Gravar a imagem ** Se tiver ordem para gravar a imagem apos A inspeção **
+                    //Se tiver ordem para gravar a imagem apos a inspeção
+                    if (this.saveImage && this.guardarImagemFimInspecao)
+                    {
+                        //Cria o caminho geral do diretório das imagens
+                        //string filename = this.TempoInicioInspecao.ToString("dd-MM-yyyy") + "_" + this.TempoInicioInspecao.ToString("HH-mm-ss") + "_" + this.TipoInspecao + "_" + (this.ResultadoInspecao == 1 ? "OK" : "NOT_OK") + ".bmp";
+
+                        //string filename = "ID" + idFaca.ToString() + "_" + Diversos.NumberToString(DB400.INSPECTION_RESULT.AMPLITUDE_DESVIO, 2, true) + "_" + Diversos.NumberToString(DB400.INSPECTION_RESULT.POS_MAX_DESVIO, 2, true) + "_" + this.TempoInicioInspecao.ToString("dd-MM-yyyy") + "_" + this.TempoInicioInspecao.ToString("HH-mm-ss") + "_" + (this.ResultadoInspecao == 1 ? "OK" : "NOT_OK") + ".bmp";
+                        string filename = "ID" + idFaca.ToString() + "_" + Diversos.NumberToString(comprimentoFaca, 2, true) + "_" + Diversos.NumberToString(amplitudeDesvioSuperior, 2, true) + "_" + Diversos.NumberToString(posMaxDesvioSuperior, 2, true) + "_" + this.TempoInicioInspecao.ToString("dd-MM-yyyy") + "_" + this.TempoInicioInspecao.ToString("HH-mm-ss");
+
+                        //Juntas o diretório num só
+                        this.imageFullPath = this.diretorioImagens + filename;
+
+                        //Em thread, grava a imagem adquirida, de acordo com o metodo pretendido
+                        if (this.saveImgByHalcon)
+                            new Thread(() => this.GravaImagem1(ImagemActInspecao.Clone(), this.imageFullPath)).Start();
+                        else
+                            new Thread(() => this.GravaImagem2(ImagemActInspecao.Clone(), this.imageFullPath)).Start();
+                    }
+
+                    /*calcula numero atual de threads*/
+                    AuxDT = DateTime.Now;
+                    Debug.WriteLine("# InspNumber: " + _InspNumber);
+                    while ((_InspNumber - 1) != (this.numberAqThreads)) { }
+                    while ((Forms.MainForm.PlcControl.HmiPlcFeedbackdisc.menber.ID == Forms.MainForm.PlcControl.PlcHmiNewDisc.menber.ID)
+                           )
+                    {
+                    }
+
+                    Debug.WriteLine("#terminou Nova Inspeção com ID: " + Forms.MainForm.PlcControl.PlcHmiNewDisc.menber.ID +" #Numero Threads: " + NumeroThreads + " # Tempo PLC: " + (DateTime.Now - AuxDT).TotalMilliseconds + " # CallInspection - Elapsed time: " + Convert.ToInt32((DateTime.Now - startTime).TotalMilliseconds) + " ms ***");
+                    this.ProcessaFimInspecaoPLC(Forms.MainForm.PlcControl.PlcHmiNewDisc.menber);
+                    Forms.MainForm.PlcControl.HmiPlcFeedbackdisc.writeClassValues(Forms.MainForm.PlcControl.PlcHmiNewDisc.menber);
+                    lock (this.ThreadLock)
+                    {
+                        while ((Forms.MainForm.PlcControl.HmiPlcFeedbackdisc.menber.ID != Forms.MainForm.PlcControl.PlcHmiNewDisc.menber.ID)
+                           )
+                        {
+                        }
+                        this.numberAqThreads = _InspNumber;
+                    }
+                    #endregion
+                    NumeroThreads--;
                 }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("CallInspection(): " + ex.Message);
+            }
+            finally
+            {
+                this.inspecaoOK = true;
+
+                this.AcquisicaoEmCurso = this.InspecaoEmCurso = false;
+
+                //Dá a indicação ao HMI que temos um novo anel processado
+                this.NovoAnelProcessado = true;
+
+                //Debug.WriteLine();
+
+                GC.Collect(); //chama o coletor de memoria apos cada inspecao
+            }
         }
 
-        public void ProcessaDadosInspecao(bool facaDetetada, double comprimentoFaca, double amplitudeDesvioSuperior, double posMaxDesvioSuperior,  double amplitudeDesvioInferior, double posMaxDesvioInferior, bool erroInspecao, string msgInspecao)
+        public void ProcessaDadosInspecao(bool facaDetetada, double comprimentoFaca, double amplitudeDesvioSuperior, double posMaxDesvioSuperior, double amplitudeDesvioInferior, double posMaxDesvioInferior, bool erroInspecao, string msgInspecao)
         {
             //Processar os dados de inspecao
             this.ErroInspecao = erroInspecao;
@@ -771,7 +846,7 @@ namespace _22079AI
                 this.comprimentoFaca = comprimentoFaca;
                 this.amplitudeDesvioFacaSuperior = amplitudeDesvioSuperior;
                 this.posDesvioMaxFacaSuperior = posMaxDesvioSuperior;
-                this.amplitudeDesvioFacaInferior = amplitudeDesvioInferior;               
+                this.amplitudeDesvioFacaInferior = amplitudeDesvioInferior;
                 this.posDesvioMaxFacaInferior = posMaxDesvioInferior;
 
                 //atribui a avaliação do anel
@@ -814,25 +889,20 @@ namespace _22079AI
         public void AtualizaEstadoCameraPLC(short valor)
         {
             //Estado Comando Folga
-            Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Int, valor, this.DbNumber, 6);
+            //Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Int, valor, this.DbNumber, 6);
         }
 
-        private void ProcessaFimInspecaoPLC()
+        private void ProcessaFimInspecaoPLC(DiscMenbers Disc)
         {
             //Enviar o resultado de inspeção
-            Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Int, (short)(this.ResultadoInspecao), this.DbNumber, 4);
+            Disc.result = (short)this.ResultadoInspecao;
 
-            List<Siemens.WriteMultiVariables> values = new List<Siemens.WriteMultiVariables>();
-            values.Add(new Siemens.WriteMultiVariables(Siemens.TipoVariavel.Real, this.ComprimentoFaca));
-            values.Add(new Siemens.WriteMultiVariables(Siemens.TipoVariavel.Real, this.AmplitudeDesvioFacaSuperior));
-            values.Add(new Siemens.WriteMultiVariables(Siemens.TipoVariavel.Real, this.PosDesvioMaxFacaSuperior));
-            values.Add(new Siemens.WriteMultiVariables(Siemens.TipoVariavel.Real, this.AmplitudeDesvioFacaInferior));
-            values.Add(new Siemens.WriteMultiVariables(Siemens.TipoVariavel.Real, this.PosDesvioMaxFacaInferior));
+            lock (lockLista)
+            {
+                ListaDiscosInspecionados.Add(Disc);
+            }
 
-            Forms.MainForm.PLC1.EnviaSequenciaTagsRT(Siemens.MemoryArea.DB, values.ToArray(), this.DbNumber, 172);
 
-            //Enviar o inspection done
-            this.inspecaoOK = Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, true, this.DbNumber, 10, 3); //db55.dbx10.3 - done inspection
 
             this.TempoInspecao = Convert.ToInt32((DateTime.Now - this.TempoInicioInspecao).TotalMilliseconds) - this.TempoAquisicao;
 
@@ -889,9 +959,12 @@ namespace _22079AI
 
                     //Obtem as outputs do script
                     outputImage = this.inspScript.GetOutputIconicParamObject("OutputImage");
-                    resultadoInsp = this.inspScript.GetOutputCtrlParamTuple("Resultado").D;
-                    erroInspecao = this.inspScript.GetOutputCtrlParamTuple("Erro") == 1;
-                    msgErro = this.inspScript.GetOutputCtrlParamTuple("MsgErro");
+                    resultadoInsp = 1;//this.inspScript.GetOutputCtrlParamTuple("Resultado").D;
+                    erroInspecao = false;// this.inspScript.GetOutputCtrlParamTuple("Erro") == 1;
+
+                    //msgErro = this.inspScript.GetOutputCtrlParamTuple("MsgErro")[0];
+
+                    msgErro = "";//o emanuel nao colocou menssagens em todos os caos :) RC
 
                     //facaDetetada = this.inspScript.GetOutputCtrlParamTuple("FacaDetetada") == 1;
                     //valorComprimentoFaca = this.inspScript.GetOutputCtrlParamTuple("ComprimentoLamina").D;
@@ -978,7 +1051,7 @@ namespace _22079AI
             }
             finally
             {
-                Debug.WriteLine("*** CallInspectionScript(" + this.TipoInspecao + ") - Elapsed time: " + Convert.ToInt32((DateTime.Now - startTime).TotalMilliseconds) + " ms ***");
+                //Debug.WriteLine("*** CallInspectionScript - Elapsed time: " + Convert.ToInt32((DateTime.Now - startTime).TotalMilliseconds) + " ms ***");
             }
         }
 
@@ -1043,7 +1116,7 @@ namespace _22079AI
             {
                 HOperatorSet.WriteImage(hOImage, "bmp", 0, imageFullPath);
 
-                Debug.WriteLine("GravaImagem1(" + this.TipoInspecao + "): Image saved sucessufully on " + imageFullPath + " ** Elapsed Time: " + Convert.ToInt32((DateTime.Now - dataInicial).TotalMilliseconds) + " ms");
+                //Debug.WriteLine("GravaImagem1(" + this.TipoInspecao + "): Image saved sucessufully on " + imageFullPath + " ** Elapsed Time: " + Convert.ToInt32((DateTime.Now - dataInicial).TotalMilliseconds) + " ms");
                 return true;
             }
             catch (Exception e)
@@ -1118,6 +1191,8 @@ namespace _22079AI
         public void Dispose()
         {
             this.isAlive = false;
+
+            DesligaCamera();
 
             if (this.LogNormal != null)
                 this.LogNormal.Dispose();

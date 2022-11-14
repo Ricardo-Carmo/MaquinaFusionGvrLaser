@@ -251,7 +251,7 @@ namespace _22079AI
 
                         }
 
-                    Forms.MainForm.PLC1.EnviaTagRT(PLC.Siemens.MemoryArea.DB, PLC.Siemens.TipoVariavel.DInt, SpSequenciaReprovados.Value, 23, 72);
+                    //Forms.MainForm.PLC1.EnviaTagRT(PLC.Siemens.MemoryArea.DB, PLC.Siemens.TipoVariavel.DInt, SpSequenciaReprovados.Value, 23, 72);
 
                     if (numOfRows == 1)
                     {

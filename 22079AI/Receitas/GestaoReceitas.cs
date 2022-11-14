@@ -158,13 +158,13 @@ namespace _22079AI
             if (dgvReceitas.RowCount > 0 && dgvReceitas.SelectedRows.Count > 0)
             {
                 //Coloca camera em modo video
-                Forms.MainForm.PLC1.EnviaTag(PLC.Siemens.MemoryArea.DB, PLC.Siemens.TipoVariavel.Int, 1, 47, 6);
+                //Forms.MainForm.PLC1.EnviaTag(PLC.Siemens.MemoryArea.DB, PLC.Siemens.TipoVariavel.Int, 1, 47, 6);
                 
                 new FormularioReceita(this.strConexaoDb, FormularioReceita.TipoAcesso.Editar, Convert.ToInt32(dgvReceitas.SelectedRows[0].Cells[0].Value)).ShowDialog();
             }
             this.AtualizaListaReceitas(txtNumReferencia.Text);
             //coloca camera em modo trigger
-            Forms.MainForm.PLC1.EnviaTag(PLC.Siemens.MemoryArea.DB, PLC.Siemens.TipoVariavel.Int, 2, 47, 6);
+            //Forms.MainForm.PLC1.EnviaTag(PLC.Siemens.MemoryArea.DB, PLC.Siemens.TipoVariavel.Int, 2, 47, 6);
 
 
         }

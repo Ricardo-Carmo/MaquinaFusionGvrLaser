@@ -173,7 +173,7 @@ namespace _22079AI
                         }
 
                         if (numOfRows >= 0)
-                            Debug.WriteLine("ThreadFifoAlarmes(): Fifo de alarmes efetuado. Total de resultados afetados: " + numOfRows);
+                            ;// Debug.WriteLine("ThreadFifoAlarmes(): Fifo de alarmes efetuado. Total de resultados afetados: " + numOfRows);
                         else
                             throw new Exception("Erro ao executar query. numOfRows: " + numOfRows);
 
@@ -277,8 +277,8 @@ namespace _22079AI
             }
 
 
-            if (returnValue)
-                Forms.MainForm.PLC1.EnviaTag(MemoryArea.M, TipoVariavel.Bool, true, 0, 90, 0);
+            if (returnValue) ;
+                //Forms.MainForm.PLC1.EnviaTag(MemoryArea.M, TipoVariavel.Bool, true, 0, 90, 0);
 
             return returnValue;
         }

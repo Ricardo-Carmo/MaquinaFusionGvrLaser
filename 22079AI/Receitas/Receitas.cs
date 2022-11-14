@@ -278,12 +278,12 @@ namespace _22079AI
                 if (!this.ReceitaCarregada)
                     throw new Exception("Sem receita carregada!");
 
-                Forms.MainForm.PLC1.EnviaTagRT(Siemens.MemoryArea.DB, Siemens.TipoVariavel.DInt, this.ComprimentoNominal, 23, 4);
-                Forms.MainForm.PLC1.EnviaTagRT(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Int, this.SpOK, 23, 12);
-                Forms.MainForm.PLC1.EnviaTagRT(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Int, this.SpNOK, 23, 14);
+                //Forms.MainForm.PLC1.EnviaTagRT(Siemens.MemoryArea.DB, Siemens.TipoVariavel.DInt, this.ComprimentoNominal, 23, 4);
+                //Forms.MainForm.PLC1.EnviaTagRT(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Int, this.SpOK, 23, 12);
+                //Forms.MainForm.PLC1.EnviaTagRT(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Int, this.SpNOK, 23, 14);
 
                 //Tag de valores de recita actualizados
-                Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, true, 23, 0, 2);
+                //Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, true, 23, 0, 2);
             }
             catch (Exception ex)
             {

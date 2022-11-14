@@ -116,18 +116,18 @@ namespace _22079AI
 
         private void button4_Click(object sender, EventArgs e)
         {
-            Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, true, 30, 2, 0);
+            //Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, true, 30, 2, 0);
         }
 
 
         private void button3_Click(object sender, EventArgs e)
         {
-            Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, true, 20, 2, 3);
+            //Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, true, 20, 2, 3);
         }
 
         private void Button6_1_Click(object sender, EventArgs e)
         {
-            Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, false, 23, 0, 0);
+            //Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, false, 23, 0, 0);
         }
 
         private void Button6_0_Click(object sender, EventArgs e)
@@ -138,12 +138,12 @@ namespace _22079AI
 
         private void Button5_Click(object sender, EventArgs e)
         {
-            Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, true, 30, 0, 0);
+            //Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, true, 30, 0, 0);
         }
 
         private void Button6_Click(object sender, EventArgs e)
         {
-            Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, false, 400, 38, 4);
+            //Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, false, 400, 38, 4);
         }
 
         private void Button7_Click(object sender, EventArgs e)
@@ -153,13 +153,13 @@ namespace _22079AI
 
         private void Button8_0_Click(object sender, EventArgs e)
         {
-            Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, !DB400.CAIXA_PRESENTE_APROVADOS, 20, 3, 3);
+            //Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, !DB400.CAIXA_PRESENTE_APROVADOS, 20, 3, 3);
 
         }
 
         private void Button8_1_Click(object sender, EventArgs e)
         {
-            Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, !DB400.CAIXA_PRESENTE_REPROVADOS, 20, 3, 4);
+            //Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, !DB400.CAIXA_PRESENTE_REPROVADOS, 20, 3, 4);
         }
     }
 }

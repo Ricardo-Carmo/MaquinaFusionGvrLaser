@@ -235,7 +235,7 @@ namespace PLC
             if (UltimoEstadoPLC == EstadoPLC.LigadoComLigacao)
                 try
                 {
-                    //if (Client.Connected)
+                    if (Client.Connected)
                         lock (clientLock)
                        {
                             int res = this.MakeRead(area, _dbNumber, _offset, ref buffer);
@@ -244,8 +244,8 @@ namespace PLC
                             else
                                 throw new Exception("Error Code: " + res + " " + Client.ErrorText(res));
                         }
-                    //else
-                    //    throw new Exception("Sem comunicação com PLC");
+                    else
+                       throw new Exception("Sem comunicação com PLC");
                 }
                 catch (Exception ex)
                 {

@@ -6,8 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
-
-
+using System.Diagnostics;
 
 namespace _22079AI
 {
@@ -22,10 +21,12 @@ namespace _22079AI
         public DateTime Startdate, auxdt;
         private readonly object PublicVarLock = new object();
 
+        private bool isAlive = true;
+
         private bool FirstConetion = new bool();
 
         //variaveis a serem lidas e escritas para controlo do PLC
-        public Disc HmiPlcNewDisc = new Disc(), HmiPlcFeedbackdisc = new Disc(), PlcHmiNewDisc = new Disc(), PlcHmiFeedbackdisc = new Disc();
+        public DiscCom HmiPlcNewDisc = new DiscCom(), HmiPlcFeedbackdisc = new DiscCom(), PlcHmiNewDisc = new DiscCom(), PlcHmiFeedbackdisc = new DiscCom();
         public Tapetesin StaTapetes = new Tapetesin();
         public TapetesOut CmdTapetes = new TapetesOut();
         public Vibradoresin StaVibrador = new Vibradoresin();
@@ -34,22 +35,28 @@ namespace _22079AI
         public CicloOut CmdCiclo = new CicloOut();
         public Inputs Dis = new Inputs();
         public Outputs Dos = new Outputs();
-        public bool HmiNewDiscRead { get 
+        public bool HmiNewDiscRead
+        {
+            get
             {
-                return (HmiPlcFeedbackdisc.ID != PlcHmiNewDisc.ID);
-             }
-             set { } 
+                return (HmiPlcFeedbackdisc.menber.ID != PlcHmiNewDisc.menber.ID);
+            }
+            set
+            {
+
+                HmiPlcFeedbackdisc = PlcHmiNewDisc;
+            }
         }
         public bool PlcReadyForNewDIsc
         {
             get
             {
-                return (HmiPlcNewDisc.ID == PlcHmiFeedbackdisc.ID);
+                return (HmiPlcNewDisc.menber.ID == PlcHmiFeedbackdisc.menber.ID);
             }
             set { }
         }
         //Variaveis privadas de interface com PLC
-        private Disc _HmiPlcNewDisc = new Disc(), _HmiPlcFeedbackdisc = new Disc(), _PlcHmiNewDisc = new Disc(), _PlcHmiFeedbackdisc = new Disc();
+        private DiscCom _HmiPlcNewDisc = new DiscCom(), _HmiPlcFeedbackdisc = new DiscCom(), _PlcHmiNewDisc = new DiscCom(), _PlcHmiFeedbackdisc = new DiscCom();
         private Tapetesin _StaTapetes = new Tapetesin();
         private TapetesOut _CmdTapetes = new TapetesOut();
         private Vibradoresin _StaVibrador = new Vibradoresin();
@@ -61,7 +68,7 @@ namespace _22079AI
         private bool SendRequest = new bool();
         private DateTime LastWriteTime;
         private double MinComTime = 1500;
-
+        
         #region ReadWritePlc
 
         /*
@@ -74,17 +81,19 @@ namespace _22079AI
          //hmi envia proximo disco
          */
 
-        public void WriteReadPlc() {
-            var tasks = new Task[3];
+        public void WriteReadPlc()
+        {
+           PLC1 = new Siemens(VariaveisAuxiliares.iniPath);
 
-            
-            PLC1 = new Siemens(VariaveisAuxiliares.iniPath);
+            while (this.isAlive)
+            {
 
                 FirstConetion = false;
                 //Limpa listagens de variaveis
                 ArrayIn.Clear();
                 ArrayOut.Clear();
                 index = 0;
+
                 //multiplexa listagens de saida de variaveis
                 _HmiPlcNewDisc.CreatReadList(ArrayIn);
                 _HmiPlcFeedbackdisc.CreatReadList(ArrayIn);
@@ -98,124 +107,146 @@ namespace _22079AI
                 index = _CmdTapetes.ReadVariables(ArrayIn, index);
                 index = _CmdVibrador.ReadVariables(ArrayIn, index);
                 index = _CmdCiclo.ReadVariables(ArrayIn, index);
-                HmiPlcNewDisc = _HmiPlcNewDisc;
-                HmiPlcFeedbackdisc = _HmiPlcFeedbackdisc;
+
+                ArrayIn.Clear();
+                ArrayOut.Clear();
+
+                HmiPlcNewDisc.writeClassValues(_HmiPlcNewDisc.menber) ;
+                HmiPlcFeedbackdisc.writeClassValues(_HmiPlcFeedbackdisc.menber);
                 CmdTapetes = _CmdTapetes;
                 CmdVibrador = _CmdVibrador;
                 CmdCiclo = _CmdCiclo;
                 FirstConetion = true;
 
-            while (FirstConetion) {
-
-                try
+                while (FirstConetion)
                 {
-                    //inicializa contador de tempo
-                    Startdate = DateTime.Now;
 
-                    Task Recieve = Task.Run(() =>
+                    try
                     {
-                        //Limpa listagens de variaveis
-                        ArrayIn.Clear();
-                        //multiplexa variaveis para lista
-                        _PlcHmiNewDisc.CreatReadList(ArrayIn);
-                        _PlcHmiFeedbackdisc.CreatReadList(ArrayIn);
-                        _StaTapetes.CreatReadList(ArrayIn);
-                        _StaVibrador.CreatReadList(ArrayIn);
-                        _StaCiclo.CreatReadList(ArrayIn);
-                        _Dis.CreatReadList(ArrayIn);
-                        _Dos.CreatReadList(ArrayIn);
-                        //Le chunk de memoria do PLC para a listagem
-                        PLC1.LeSequenciaTags(Siemens.MemoryArea.DB, ArrayIn.ToArray(), 400, 0);
-                    }
-                    );
-                    Recieve.Wait();
+                        //inicializa contador de tempo
+                        Startdate = DateTime.Now;
 
-                    //Calculo final do tempo de ciclo
-                    leituras = (DateTime.Now - Startdate).TotalMilliseconds;
-                     auxdt = DateTime.Now;
-                    
+                    //    Task Recieve = Task.Run(() =>
+                     //   {
+                            //Limpa listagens de variaveis
+                            ArrayIn.Clear();
+                            //multiplexa variaveis para lista
+                            _PlcHmiNewDisc.CreatReadList(ArrayIn);
+                            _PlcHmiFeedbackdisc.CreatReadList(ArrayIn);
+                            _StaTapetes.CreatReadList(ArrayIn);
+                            _StaVibrador.CreatReadList(ArrayIn);
+                            _StaCiclo.CreatReadList(ArrayIn);
+                            _Dis.CreatReadList(ArrayIn);
+                            _Dos.CreatReadList(ArrayIn);
+                            //Le chunk de memoria do PLC para a listagem
+                            PLC1.LeSequenciaTags(Siemens.MemoryArea.DB, ArrayIn.ToArray(), 400, 0);
+                    //    }
+                    //    );
+                    //    Recieve.Wait();
+
+                        //Calculo final do tempo de ciclo
+                        leituras = (DateTime.Now - Startdate).TotalMilliseconds;
+                        auxdt = DateTime.Now;
 
 
-                    index = 0;
-                    index=_PlcHmiNewDisc.ReadVariables(ArrayIn, index);
-                    index = _PlcHmiFeedbackdisc.ReadVariables(ArrayIn, index);
-                    index = _StaTapetes.ReadVariables(ArrayIn, index);
-                    index = _StaVibrador.ReadVariables(ArrayIn, index);
-                    index = _StaCiclo.ReadVariables(ArrayIn, index);
-                    index = _Dis.ReadVariables(ArrayIn, index);
-                    index = _Dos.ReadVariables(ArrayIn, index);
 
-                   // HmiPlcNewDisc.ID = HmiPlcNewDisc.ID + 1;
-                    //if (HmiPlcNewDisc.ID > 100)
-                    //    HmiPlcNewDisc.ID = 0;
+                        index = 0;
+                        index = _PlcHmiNewDisc.ReadVariables(ArrayIn, index);
+                        index = _PlcHmiFeedbackdisc.ReadVariables(ArrayIn, index);
+                        index = _StaTapetes.ReadVariables(ArrayIn, index);
+                        index = _StaVibrador.ReadVariables(ArrayIn, index);
+                        index = _StaCiclo.ReadVariables(ArrayIn, index);
+                        index = _Dis.ReadVariables(ArrayIn, index);
+                        index = _Dos.ReadVariables(ArrayIn, index);
 
-                    //passa valor para veriaveis globais
-                    //Inicializa valores dos outputs
-                    lock (PublicVarLock) {
+                        // HmiPlcNewDisc.ID = HmiPlcNewDisc.ID + 1;
+                        //if (HmiPlcNewDisc.ID > 100)
+                        //    HmiPlcNewDisc.ID = 0;
 
-                    SendRequest = HmiPlcNewDisc.Equals(_HmiPlcFeedbackdisc) && HmiPlcFeedbackdisc.Equals(_HmiPlcFeedbackdisc) && CmdTapetes.Equals(_CmdTapetes) && CmdCiclo.Equals(_CmdCiclo);
+                        //passa valor para veriaveis globais
+                        //Inicializa valores dos outputs
+                        //lock (PublicVarLock)
+                        //{
 
-                    _HmiPlcNewDisc = HmiPlcNewDisc;
-                    _HmiPlcFeedbackdisc = HmiPlcFeedbackdisc;
-                    _CmdTapetes = CmdTapetes;
-                    _CmdVibrador = CmdVibrador;
-                    _CmdCiclo = CmdCiclo;
 
-                         
-                    PlcHmiNewDisc = _PlcHmiNewDisc;
-                    PlcHmiFeedbackdisc = _PlcHmiFeedbackdisc;
-                    StaTapetes = _StaTapetes;
-                    StaVibrador= _StaVibrador;
-                    StaCiclo = _StaCiclo;
-                    Dis = _Dis;
-                    Dos = _Dos;
-                    }
 
-                    if (!(SendRequest)) { 
-                    Task Send = Task.Run(() =>
-                    {
+                        //SendRequest = (HmiPlcNewDisc.menber.ID == _HmiPlcNewDisc.menber.ID && HmiPlcFeedbackdisc.menber.ID == _HmiPlcFeedbackdisc.menber.ID);
+
+
+
+
+                        //SendRequest = (PlcHmiNewDisc.menber.ID == _PlcHmiNewDisc.menber.ID && PlcHmiFeedbackdisc.menber.ID == _PlcHmiFeedbackdisc.menber.ID);
+
+
+
+                        lock (PublicVarLock) { 
+
+                        _HmiPlcNewDisc.writeClassValues(HmiPlcNewDisc.menber) ;
+                        _HmiPlcFeedbackdisc.writeClassValues(HmiPlcFeedbackdisc.menber) ;
+                        _CmdTapetes = CmdTapetes;
+                        _CmdVibrador = CmdVibrador;
+                        _CmdCiclo = CmdCiclo;
+
+
+                        PlcHmiNewDisc.writeClassValues(_PlcHmiNewDisc.menber);
+                        PlcHmiFeedbackdisc.writeClassValues(_PlcHmiFeedbackdisc.menber);
+                        StaTapetes = _StaTapetes;
+                        StaVibrador = _StaVibrador;
+                        StaCiclo = _StaCiclo;
+                        Dis = _Dis;
+                        Dos = _Dos;
+
+                        }
+
+
+                        //}
+
+                        //if (!(SendRequest))
+                        //{
+                        //   Task Send = Task.Run(() =>
+                        //    {
                         //multiplexa listagens de saida de variaveis
                         ArrayOut.Clear();
-                        _HmiPlcNewDisc.WriteVariables(ArrayOut);
-                        _HmiPlcFeedbackdisc.WriteVariables(ArrayOut);
-                        _CmdTapetes.WriteVariables(ArrayOut);
-                        _CmdVibrador.WriteVariables(ArrayOut);
-                        _CmdCiclo.WriteVariables(ArrayOut);
-                        //Envia chunk de memoria do PLC
-                        PLC1.EnviaSequenciaTagsRT(Siemens.MemoryArea.DB, ArrayOut.ToArray(), 401, 0);
-                        LastWriteTime = DateTime.Now;
-                        //desmultiplexa listagens de entrada em variaveis de utilizador
+                                _HmiPlcNewDisc.WriteVariables(ArrayOut);
+                                _HmiPlcFeedbackdisc.WriteVariables(ArrayOut);
+                                _CmdTapetes.WriteVariables(ArrayOut);
+                                _CmdVibrador.WriteVariables(ArrayOut);
+                                _CmdCiclo.WriteVariables(ArrayOut);
+                                //Envia chunk de memoria do PLC
+                                PLC1.EnviaSequenciaTagsRT(Siemens.MemoryArea.DB, ArrayOut.ToArray(), 401, 0);
+                                LastWriteTime = DateTime.Now;
+                                //desmultiplexa listagens de entrada em variaveis de utilizador
+                       //     }
+                       //    );
+                      //      Send.Wait();
+                        //}
+                        //Calculo final do tempo de ciclo
+                        CycleTime = (DateTime.Now - Startdate).TotalMilliseconds;
+                        Thread.Sleep(0);
                     }
-                   );
-                    Send.Wait();
+                    catch
+                    {
+                        FirstConetion = false;
                     }
-                    //Calculo final do tempo de ciclo
-                    CycleTime = (DateTime.Now - Startdate).TotalMilliseconds;
                 }
-                catch
-                {
-
-                    FirstConetion = false;
-                }
-        
-               
-              
-
-
-            }
             }
         }
-        
 
-   
+
+        public void Dispose()
+        {
+            isAlive = false;
+        }
+    }
+
+
+
     #endregion
 
 
     #region PLC structs
-
-    //classe de informação sobre o disco
-    public class Disc
-        {
+    public class DiscMenbers
+    {
         public double ID;
         public double PulseEncoderS1;
         public double PulseEncoderS2;
@@ -229,8 +260,13 @@ namespace _22079AI
         public short reserved_4;
         public short reserved_5;
         public short reserved_6;
+    }
+    //classe de informação sobre o disco
+    public class DiscCom
+    {
+        public DiscMenbers menber = new DiscMenbers();
 
-        public void CreatReadList(List<PLC.Siemens.ReadMultiVariables> buffer )
+        public void CreatReadList(List<PLC.Siemens.ReadMultiVariables> buffer)
         {
             buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.DInt, 0));
             buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.DInt, 0));
@@ -249,61 +285,75 @@ namespace _22079AI
         }
         public void WriteVariables(List<PLC.Siemens.WriteMultiVariables> buffer)
         {
-            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.DInt, ID ,0));
-            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.DInt, PulseEncoderS1, 0));
-            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.DInt, PulseEncoderS2, 0));
-            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.DInt, PulseExpel, 0));
-            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.DInt, DelayExpel, 0));
-            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, result, 0));
-            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, reserved_0, 0));
-            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, reserved_1, 0));
-            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, reserved_2, 0));
-            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, reserved_3, 0));
-            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, reserved_4, 0));
-            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, reserved_5, 0));
-            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, reserved_6, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.DInt, menber.ID, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.DInt, menber.PulseEncoderS1, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.DInt, menber.PulseEncoderS2, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.DInt, menber.PulseExpel, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.DInt, menber.DelayExpel, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, menber.result, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, menber.reserved_0, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, menber.reserved_1, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, menber.reserved_2, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, menber.reserved_3, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, menber.reserved_4, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, menber.reserved_5, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, menber.reserved_6, 0));
 
         }
         public int ReadVariables(List<PLC.Siemens.ReadMultiVariables> buffer, int index)
         {
 
-            ID = Convert.ToDouble(buffer[index].ObtemVariavel());
+            menber.ID = Convert.ToDouble(buffer[index].ObtemVariavel());
             index++;
-            PulseEncoderS1 = buffer[index].ObtemVariavel();
+            menber.PulseEncoderS1 = buffer[index].ObtemVariavel();
             index++;
-            PulseEncoderS2 = buffer[index].ObtemVariavel();
+            menber.PulseEncoderS2 = buffer[index].ObtemVariavel();
             index++;
-            PulseExpel = buffer[index].ObtemVariavel();
+            menber.PulseExpel = buffer[index].ObtemVariavel();
             index++;
-            DelayExpel = buffer[index].ObtemVariavel();
+            menber.DelayExpel = buffer[index].ObtemVariavel();
             index++;
-            result = buffer[index].ObtemVariavel();
+            menber.result = buffer[index].ObtemVariavel();
             index++;
-            reserved_0 = buffer[index].ObtemVariavel();
+            menber.reserved_0 = buffer[index].ObtemVariavel();
             index++;
-            reserved_1 = buffer[index].ObtemVariavel();
+            menber.reserved_1 = buffer[index].ObtemVariavel();
             index++;
-            reserved_2 = buffer[index].ObtemVariavel();
+            menber.reserved_2 = buffer[index].ObtemVariavel();
             index++;
-            reserved_3 = buffer[index].ObtemVariavel();
+            menber.reserved_3 = buffer[index].ObtemVariavel();
             index++;
-            reserved_4 = buffer[index].ObtemVariavel();
+            menber.reserved_4 = buffer[index].ObtemVariavel();
             index++;
-            reserved_5 = buffer[index].ObtemVariavel();
+            menber.reserved_5 = buffer[index].ObtemVariavel();
             index++;
-            reserved_6 = buffer[index].ObtemVariavel();
+            menber.reserved_6 = buffer[index].ObtemVariavel();
             index++;
 
             return index;
         }
-        
-  
 
+        public void writeClassValues(DiscMenbers Values)
+        {
+            menber.ID = Values.ID;
+            menber.PulseEncoderS1 = Values.PulseEncoderS1;
+            menber.PulseEncoderS2 = Values.PulseEncoderS2;
+            menber.PulseExpel = Values.PulseExpel;
+            menber.DelayExpel = Values.DelayExpel;
+            menber.result = Values.result;
+            menber.reserved_0 = Values.reserved_0;
+            menber.reserved_1 = Values.reserved_1;
+            menber.reserved_2 = Values.reserved_2;
+            menber.reserved_3 = Values.reserved_3;
+            menber.reserved_4 = Values.reserved_4;
+            menber.reserved_5 = Values.reserved_5;
+            menber.reserved_6 = Values.reserved_6;
+        }
     }
 
     public class Inputs
-        {
-
+    {
+        public class variables { 
         public bool Di0;
         public bool Di1;
         public bool Di2;
@@ -320,6 +370,8 @@ namespace _22079AI
         public bool Di13;
         public bool Di14;
         public bool Di15;
+        }
+        public variables Vars = new variables();
 
         public void CreatReadList(List<PLC.Siemens.ReadMultiVariables> buffer)
         {
@@ -331,94 +383,9 @@ namespace _22079AI
         {
             byte auxbyte = new byte();
 
-            auxbyte = PLC.Siemens.BitsToByte(Di0, Di1, Di2, Di3, Di4, Di5, Di6, Di7);
+            auxbyte = PLC.Siemens.BitsToByte(Vars.Di0, Vars.Di1, Vars.Di2, Vars.Di3, Vars.Di4, Vars.Di5, Vars.Di6, Vars.Di7);
             buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, auxbyte, 0));
-            auxbyte = PLC.Siemens.BitsToByte(Di8, Di9, Di10, Di11, Di12, Di13, Di14, Di15);
-            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, auxbyte, 0));
-
-        }
-        public int ReadVariables(List<PLC.Siemens.ReadMultiVariables> buffer, int index)
-        {
-            byte[]  Mask = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 };
-            byte auxByte;
-            int bit;
-
-
-            bit = 0;
-            auxByte = (buffer[index].ObtemVariavel()) ;
-            Di0 = (auxByte & Mask[bit])!=0;
-            bit = bit + 1;
-            Di1 = (auxByte & Mask[bit]) != 0;
-            bit = bit + 1;
-            Di2 = (auxByte & Mask[bit]) != 0;
-            bit = bit + 1;
-            Di3 = (auxByte & Mask[bit]) != 0;
-            bit = bit + 1;
-            Di4 = (auxByte & Mask[bit]) != 0;
-            bit = bit + 1;
-            Di5 = (auxByte & Mask[bit]) != 0;
-            bit = bit + 1;
-            Di6 = (auxByte & Mask[bit]) != 0;
-            bit = bit + 1;
-            Di7 = (auxByte & Mask[bit]) != 0;
-            bit = bit + 1;
-            index = index + 1;
-            bit = 0;
-            auxByte = (buffer[index].ObtemVariavel());
-            Di8 = (auxByte & Mask[bit]) != 0;
-            bit = bit + 1;
-            Di9 = (auxByte & Mask[bit]) != 0;
-            bit = bit + 1;
-            Di10 = (auxByte & Mask[bit]) != 0;
-            bit = bit + 1;
-            Di11 = (auxByte & Mask[bit]) != 0;
-            bit = bit + 1;
-            Di12 = (auxByte & Mask[bit]) != 0;
-            bit = bit + 1;
-            Di13 = (auxByte & Mask[bit]) != 0;
-            bit = bit + 1;
-            Di14 = (auxByte & Mask[bit]) != 0;
-            bit = bit + 1;
-            Di15 = (auxByte & Mask[bit]) != 0;
-            index = index + 1;
-
-            return index;
-        }
-    }
-
-    public class Outputs
-    {
-
-        public bool Do0;
-        public bool Do1;
-        public bool Do2;
-        public bool Do3;
-        public bool Do4;
-        public bool Do5;
-        public bool Do6;
-        public bool Do7;
-        public bool Do8;
-        public bool Do9;
-        public bool Do10;
-        public bool Do11;
-        public bool Do12;
-        public bool Do13;
-        public bool Do14;
-        public bool Do15;
-
-        public void CreatReadList(List<PLC.Siemens.ReadMultiVariables> buffer)
-        {
-            buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte, 0));
-            buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte, 0));
-
-        }
-        public void WriteVariables(List<PLC.Siemens.WriteMultiVariables> buffer)
-        {
-            byte auxbyte = new byte();
-
-            auxbyte = PLC.Siemens.BitsToByte(Do0, Do1, Do2, Do3, Do4, Do5, Do6, Do7);
-            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, auxbyte, 0));
-            auxbyte = PLC.Siemens.BitsToByte(Do8, Do9, Do10, Do11, Do12, Do13, Do14, Do15);
+            auxbyte = PLC.Siemens.BitsToByte(Vars.Di8, Vars.Di9, Vars.Di10, Vars.Di11, Vars.Di12, Vars.Di13, Vars.Di14, Vars.Di15);
             buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, auxbyte, 0));
 
         }
@@ -431,48 +398,176 @@ namespace _22079AI
 
             bit = 0;
             auxByte = (buffer[index].ObtemVariavel());
-            Do0 = (auxByte & Mask[bit]) != 0;
+            Vars.Di0 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Do1 = (auxByte & Mask[bit]) != 0;
+            Vars.Di1 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Do2 = (auxByte & Mask[bit]) != 0;
+            Vars.Di2 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Do3 = (auxByte & Mask[bit]) != 0;
+            Vars.Di3 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Do4 = (auxByte & Mask[bit]) != 0;
+            Vars.Di4 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Do5 = (auxByte & Mask[bit]) != 0;
+            Vars.Di5 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Do6 = (auxByte & Mask[bit]) != 0;
+            Vars.Di6 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Do7 = (auxByte & Mask[bit]) != 0;
+            Vars.Di7 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
             index = index + 1;
             bit = 0;
             auxByte = (buffer[index].ObtemVariavel());
-            Do8 = (auxByte & Mask[bit]) != 0;
+            Vars.Di8 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Do9 = (auxByte & Mask[bit]) != 0;
+            Vars.Di9 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Do10 = (auxByte & Mask[bit]) != 0;
+            Vars.Di10 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Do11 = (auxByte & Mask[bit]) != 0;
+            Vars.Di11 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Do12 = (auxByte & Mask[bit]) != 0;
+            Vars.Di12 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Do13 = (auxByte & Mask[bit]) != 0;
+            Vars.Di13 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Do14 = (auxByte & Mask[bit]) != 0;
+            Vars.Di14 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Do15 = (auxByte & Mask[bit]) != 0;
+            Vars.Di15 = (auxByte & Mask[bit]) != 0;
             index = index + 1;
 
             return index;
+        }
+
+        public void writeClassValues(variables Values)
+        {
+            Vars.Di0 = Values.Di0;
+            Vars.Di1 = Values.Di1;
+            Vars.Di2 = Values.Di2;
+            Vars.Di3 = Values.Di3;
+            Vars.Di4 = Values.Di4;
+            Vars.Di5 = Values.Di5;
+            Vars.Di6 = Values.Di6;
+            Vars.Di7 = Values.Di7;
+            Vars.Di8 = Values.Di8;
+            Vars.Di9 = Values.Di9;
+            Vars.Di10 = Values.Di10;
+            Vars.Di11 = Values.Di11;
+            Vars.Di12 = Values.Di12;
+            Vars.Di13 = Values.Di13;
+            Vars.Di14 = Values.Di14;
+            Vars.Di15 = Values.Di15;
+
+        }
+    }
+
+    public class Outputs
+    {
+        public class variables
+        {
+            public bool Do0;
+            public bool Do1;
+            public bool Do2;
+            public bool Do3;
+            public bool Do4;
+            public bool Do5;
+            public bool Do6;
+            public bool Do7;
+            public bool Do8;
+            public bool Do9;
+            public bool Do10;
+            public bool Do11;
+            public bool Do12;
+            public bool Do13;
+            public bool Do14;
+            public bool Do15;
+        }
+        public variables Vars = new variables();
+        public void CreatReadList(List<PLC.Siemens.ReadMultiVariables> buffer)
+        {
+            buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte, 0));
+            buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte, 0));
+
+        }
+        public void WriteVariables(List<PLC.Siemens.WriteMultiVariables> buffer)
+        {
+            byte auxbyte = new byte();
+
+            auxbyte = PLC.Siemens.BitsToByte(Vars.Do0, Vars.Do1, Vars.Do2, Vars.Do3, Vars.Do4, Vars.Do5, Vars.Do6, Vars.Do7);
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, auxbyte, 0));
+            auxbyte = PLC.Siemens.BitsToByte(Vars.Do8, Vars.Do9, Vars.Do10, Vars.Do11, Vars.Do12, Vars.Do13, Vars.Do14, Vars.Do15);
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, auxbyte, 0));
+
+        }
+        public int ReadVariables(List<PLC.Siemens.ReadMultiVariables> buffer, int index)
+        {
+            byte[] Mask = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 };
+            byte auxByte;
+            int bit;
+
+
+            bit = 0;
+            auxByte = (buffer[index].ObtemVariavel());
+            Vars.Do0 = (auxByte & Mask[bit]) != 0;
+            bit = bit + 1;
+            Vars.Do1 = (auxByte & Mask[bit]) != 0;
+            bit = bit + 1;
+            Vars.Do2 = (auxByte & Mask[bit]) != 0;
+            bit = bit + 1;
+            Vars.Do3 = (auxByte & Mask[bit]) != 0;
+            bit = bit + 1;
+            Vars.Do4 = (auxByte & Mask[bit]) != 0;
+            bit = bit + 1;
+            Vars.Do5 = (auxByte & Mask[bit]) != 0;
+            bit = bit + 1;
+            Vars.Do6 = (auxByte & Mask[bit]) != 0;
+            bit = bit + 1;
+            Vars.Do7 = (auxByte & Mask[bit]) != 0;
+            bit = bit + 1;
+            index = index + 1;
+            bit = 0;
+            auxByte = (buffer[index].ObtemVariavel());
+            Vars.Do8 = (auxByte & Mask[bit]) != 0;
+            bit = bit + 1;
+            Vars.Do9 = (auxByte & Mask[bit]) != 0;
+            bit = bit + 1;
+            Vars.Do10 = (auxByte & Mask[bit]) != 0;
+            bit = bit + 1;
+            Vars.Do11 = (auxByte & Mask[bit]) != 0;
+            bit = bit + 1;
+            Vars.Do12 = (auxByte & Mask[bit]) != 0;
+            bit = bit + 1;
+            Vars.Do13 = (auxByte & Mask[bit]) != 0;
+            bit = bit + 1;
+            Vars.Do14 = (auxByte & Mask[bit]) != 0;
+            bit = bit + 1;
+            Vars.Do15 = (auxByte & Mask[bit]) != 0;
+            index = index + 1;
+
+            return index;
+        }
+        public void writeClassValues(variables Values)
+        {
+            Vars.Do0 = Values.Do0;
+            Vars.Do1 = Values.Do1;
+            Vars.Do2 = Values.Do2;
+            Vars.Do3 = Values.Do3;
+            Vars.Do4 = Values.Do4;
+            Vars.Do5 = Values.Do5;
+            Vars.Do6 = Values.Do6;
+            Vars.Do7 = Values.Do7;
+            Vars.Do8 = Values.Do8;
+            Vars.Do9 = Values.Do9;
+            Vars.Do10 = Values.Do10;
+            Vars.Do11 = Values.Do11;
+            Vars.Do12 = Values.Do12;
+            Vars.Do13 = Values.Do13;
+            Vars.Do14 = Values.Do14;
+            Vars.Do15 = Values.Do15;
         }
     }
 
     public class Tapetesin
     {
+        public class variables { 
         public bool Enabled;
         public bool Running;
         public bool Fault;
@@ -483,7 +578,8 @@ namespace _22079AI
         public bool Reserved_5;
         public byte Reserved_6;
         public int actspeed;
-
+        }
+        public variables Vars = new variables();
         public void CreatReadList(List<PLC.Siemens.ReadMultiVariables> buffer)
         {
             buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte, 0));
@@ -495,10 +591,10 @@ namespace _22079AI
         {
             byte auxbyte = new byte();
 
-            auxbyte = PLC.Siemens.BitsToByte(Enabled, Running, Fault, Reserved_1, Reserved_2, Reserved_3, Reserved_4, Reserved_5);
+            auxbyte = PLC.Siemens.BitsToByte(Vars.Enabled, Vars.Running, Vars.Fault, Vars.Reserved_1, Vars.Reserved_2, Vars.Reserved_3, Vars.Reserved_4, Vars.Reserved_5);
             buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, auxbyte, 0));
-            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, Reserved_6, 0));
-            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Int, actspeed, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, Vars.Reserved_6, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Int, Vars.actspeed, 0));
 
         }
         public int ReadVariables(List<PLC.Siemens.ReadMultiVariables> buffer, int index)
@@ -510,33 +606,37 @@ namespace _22079AI
 
             bit = 0;
             auxByte = (buffer[index].ObtemVariavel());
-            Enabled = (auxByte & Mask[bit]) != 0;
+            Vars.Enabled = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Running = (auxByte & Mask[bit]) != 0;
+            Vars.Running = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Fault = (auxByte & Mask[bit]) != 0;
+            Vars.Fault = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_1 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_1 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_2 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_2 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_3 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_3 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_4 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_4 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_5 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_5 = (auxByte & Mask[bit]) != 0;
             index = index + 1;
-            Reserved_6 = (buffer[index].ObtemVariavel());
+            Vars.Reserved_6 = (buffer[index].ObtemVariavel());
             index = index + 1;
-            actspeed = buffer[index].ObtemVariavel();
+            Vars.actspeed = buffer[index].ObtemVariavel();
             index = index + 1;
 
             return index;
         }
-    }
+            public void writeClassValues(variables Values)
+            {
+            }
+        }
 
     public class TapetesOut
     {
+        public class variables { 
         public bool Enable;
         public bool Run;
         public bool Reset;
@@ -547,7 +647,8 @@ namespace _22079AI
         public bool Reserved_5;
         public byte Reserved_6;
         public int setspeed;
-
+        }
+        public variables Vars = new variables();
         public void CreatReadList(List<PLC.Siemens.ReadMultiVariables> buffer)
         {
             buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte, 0));
@@ -559,10 +660,10 @@ namespace _22079AI
         {
             byte auxbyte = new byte();
 
-            auxbyte = PLC.Siemens.BitsToByte(Enable, Run, Reset, Reserved_1, Reserved_2, Reserved_3, Reserved_4, Reserved_5);
+            auxbyte = PLC.Siemens.BitsToByte(Vars.Enable, Vars.Run, Vars.Reset, Vars.Reserved_1, Vars.Reserved_2, Vars.Reserved_3, Vars.Reserved_4, Vars.Reserved_5);
             buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, auxbyte, 0));
-            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, Reserved_6, 0));
-            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Int, setspeed, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, Vars.Reserved_6, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Int, Vars.setspeed, 0));
 
         }
         public int ReadVariables(List<PLC.Siemens.ReadMultiVariables> buffer, int index)
@@ -574,33 +675,37 @@ namespace _22079AI
 
             bit = 0;
             auxByte = (buffer[index].ObtemVariavel());
-            Enable = (auxByte & Mask[bit]) != 0;
+            Vars.Enable = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Run = (auxByte & Mask[bit]) != 0;
+            Vars.Run = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reset = (auxByte & Mask[bit]) != 0;
+            Vars.Reset = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_1 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_1 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_2 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_2 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_3 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_3 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_4 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_4 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_5 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_5 = (auxByte & Mask[bit]) != 0;
             index = index + 1;
-            Reserved_6 = (buffer[index].ObtemVariavel());
+            Vars.Reserved_6 = (buffer[index].ObtemVariavel());
             index = index + 1;
-            setspeed = buffer[index].ObtemVariavel();
+            Vars.setspeed = buffer[index].ObtemVariavel();
             index = index + 1;
 
             return index;
         }
-    }
+        public void writeClassValues(variables Values)
+        { }
+
+        }
 
     public class Vibradoresin
     {
+        public class variables { 
         public bool Enabled;
         public bool Running;
         public bool Fault;
@@ -610,7 +715,8 @@ namespace _22079AI
         public bool Reserved_4;
         public bool Reserved_5;
         public byte Reserved_6;
-
+        }
+        public variables Vars = new variables();
         public void CreatReadList(List<PLC.Siemens.ReadMultiVariables> buffer)
         {
             buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte, 0));
@@ -622,9 +728,9 @@ namespace _22079AI
         {
             byte auxbyte = new byte();
 
-            auxbyte = PLC.Siemens.BitsToByte(Enabled, Running, Fault, Reserved_1, Reserved_2, Reserved_3, Reserved_4, Reserved_5);
+            auxbyte = PLC.Siemens.BitsToByte(Vars.Enabled, Vars.Running, Vars.Fault, Vars.Reserved_1, Vars.Reserved_2, Vars.Reserved_3, Vars.Reserved_4, Vars.Reserved_5);
             buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, auxbyte, 0));
-            auxbyte = Reserved_6;
+            auxbyte = Vars.Reserved_6;
             buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, auxbyte, 0));
 
 
@@ -638,30 +744,33 @@ namespace _22079AI
 
             bit = 0;
             auxByte = (buffer[index].ObtemVariavel());
-            Enabled = (auxByte & Mask[bit]) != 0;
+            Vars.Enabled = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Running = (auxByte & Mask[bit]) != 0;
+            Vars.Running = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Fault = (auxByte & Mask[bit]) != 0;
+            Vars.Fault = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_1 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_1 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_2 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_2 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_3 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_3 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_4 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_4 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_5 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_5 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
             index = index + 1;
-            Reserved_6 = (buffer[index].ObtemVariavel());
+            Vars.Reserved_6 = (buffer[index].ObtemVariavel());
             return index;
         }
-    }
+        public void writeClassValues(variables Values)
+        { }
+        }
 
     public class VibradoresOut
     {
+        public class variables { 
         public bool Enable;
         public bool Run;
         public bool Reset;
@@ -671,7 +780,8 @@ namespace _22079AI
         public bool Reserved_4;
         public bool Reserved_5;
         public byte Reserved_6;
-
+        }
+        public variables Vars = new variables();
         public void CreatReadList(List<PLC.Siemens.ReadMultiVariables> buffer)
         {
             buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte, 0));
@@ -682,9 +792,9 @@ namespace _22079AI
         {
             byte auxbyte = new byte();
 
-            auxbyte = PLC.Siemens.BitsToByte(Enable, Run, Reset, Reserved_1, Reserved_2, Reserved_3, Reserved_4, Reserved_5);
+            auxbyte = PLC.Siemens.BitsToByte(Vars.Enable, Vars.Run, Vars.Reset, Vars.Reserved_1, Vars.Reserved_2, Vars.Reserved_3, Vars.Reserved_4, Vars.Reserved_5);
             buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, auxbyte, 0));
-            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, Reserved_6, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, Vars.Reserved_6, 0));
 
         }
         public int ReadVariables(List<PLC.Siemens.ReadMultiVariables> buffer, int index)
@@ -696,32 +806,35 @@ namespace _22079AI
 
             bit = 0;
             auxByte = (buffer[index].ObtemVariavel());
-            Enable = (auxByte & Mask[bit]) != 0;
+            Vars.Enable = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Run = (auxByte & Mask[bit]) != 0;
+            Vars.Run = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reset = (auxByte & Mask[bit]) != 0;
+            Vars.Reset = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_1 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_1 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_2 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_2 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_3 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_3 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_4 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_4 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_5 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_5 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
             index = index + 1;
-            Reserved_6 = (buffer[index].ObtemVariavel());
+            Vars.Reserved_6 = (buffer[index].ObtemVariavel());
             index = index + 1;
 
             return index;
         }
+        public void writeClassValues(variables Values)
+        { }
     }
 
     public class Cicloin
     {
+        public class variables { 
         public bool InManual;
         public bool InAuto;
         public bool CycleOn;
@@ -738,21 +851,27 @@ namespace _22079AI
         public bool Reserved_10;
         public bool Reserved_11;
         public bool Reserved_12;
-
+        public byte Reserved_13;
+        public byte Reserved_14;
+        }
+        public variables Vars = new variables();
         public void CreatReadList(List<PLC.Siemens.ReadMultiVariables> buffer)
         {
             buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte, 0));
             buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte, 0));
-
+            buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte, 0));
+            buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte, 0));
         }
         public void WriteVariables(List<PLC.Siemens.WriteMultiVariables> buffer)
         {
             byte auxbyte = new byte();
 
-            auxbyte = PLC.Siemens.BitsToByte(InManual, InAuto, CycleOn, ReadyForAuto, TapeteReady, VibradorReady, AlimentadorReady, EmergencyOk);
+            auxbyte = PLC.Siemens.BitsToByte(Vars.InManual, Vars.InAuto, Vars.CycleOn, Vars.ReadyForAuto, Vars.TapeteReady, Vars.VibradorReady, Vars.AlimentadorReady, Vars.EmergencyOk);
             buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, auxbyte, 0));
-            auxbyte = PLC.Siemens.BitsToByte(Reserved_5, Reserved_6, Reserved_7, Reserved_8, Reserved_9, Reserved_10, Reserved_11, Reserved_12);
+            auxbyte = PLC.Siemens.BitsToByte(Vars.Reserved_5, Vars.Reserved_6, Vars.Reserved_7, Vars.Reserved_8, Vars.Reserved_9, Vars.Reserved_10, Vars.Reserved_11, Vars.Reserved_12);
             buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, auxbyte, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, Vars.Reserved_13, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, Vars.Reserved_14, 0));
 
         }
         public int ReadVariables(List<PLC.Siemens.ReadMultiVariables> buffer, int index)
@@ -764,55 +883,61 @@ namespace _22079AI
 
             bit = 0;
             auxByte = (buffer[index].ObtemVariavel());
-            InManual = (auxByte & Mask[bit]) != 0;
+            Vars.InManual = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            InAuto = (auxByte & Mask[bit]) != 0;
+            Vars.InAuto = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            CycleOn = (auxByte & Mask[bit]) != 0;
+            Vars.CycleOn = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            ReadyForAuto = (auxByte & Mask[bit]) != 0;
+            Vars.ReadyForAuto = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            TapeteReady = (auxByte & Mask[bit]) != 0;
+            Vars.TapeteReady = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            VibradorReady = (auxByte & Mask[bit]) != 0;
+            Vars.VibradorReady = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            AlimentadorReady = (auxByte & Mask[bit]) != 0;
+            Vars.AlimentadorReady = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            EmergencyOk = (auxByte & Mask[bit]) != 0;
+            Vars.EmergencyOk = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
             index = index + 1;
             bit = 0;
             auxByte = (buffer[index].ObtemVariavel());
-            Reserved_5 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_5 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_6 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_6 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_7 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_7 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_8 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_8 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_9 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_9 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_10 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_10 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_11 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_11 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_12 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_12 = (auxByte & Mask[bit]) != 0;
             index = index + 1;
-
+            Vars.Reserved_13 = (buffer[index].ObtemVariavel());
+            index = index + 1;
+            Vars.Reserved_14 = (buffer[index].ObtemVariavel());
+            index = index + 1;
 
             return index;
         }
+        public void writeClassValues(variables Values)
+        { }
     }
 
     public class CicloOut
     {
+        public class variables { 
         public bool ManualRequest;
         public bool AutoRequest;
         public bool Stop;
         public bool Start;
-        public bool Reserved_0;
-        public bool Reserved_1;
+        public bool CameraReady;
+        public bool VisonReady;
         public bool Reserved_2;
         public bool Reserved_3;
         public bool Reserved_4;
@@ -823,21 +948,27 @@ namespace _22079AI
         public bool Reserved_9;
         public bool Reserved_10;
         public bool Reserved_11;
-
+        public byte NivelSessao;
+        public byte Reserved_12;
+        }
+        public variables Vars = new variables();
         public void CreatReadList(List<PLC.Siemens.ReadMultiVariables> buffer)
         {
             buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte, 0));
             buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte, 0));
-
+            buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte, 0));
+            buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte, 0));
         }
-        public void WriteVariables(List<PLC.Siemens.WriteMultiVariables> buffer) 
+        public void WriteVariables(List<PLC.Siemens.WriteMultiVariables> buffer)
         {
             byte auxbyte = new byte();
 
-            auxbyte = PLC.Siemens.BitsToByte(ManualRequest, AutoRequest, Stop, Start, Reserved_0, Reserved_1, Reserved_2, Reserved_3);
+            auxbyte = PLC.Siemens.BitsToByte(Vars.ManualRequest, Vars.AutoRequest, Vars.Stop, Vars.Start, Vars.CameraReady, Vars.VisonReady, Vars.Reserved_2, Vars.Reserved_3);
             buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, auxbyte, 0));
-            auxbyte = PLC.Siemens.BitsToByte(Reserved_4, Reserved_5, Reserved_6, Reserved_7, Reserved_8, Reserved_9, Reserved_10, Reserved_11);
+            auxbyte = PLC.Siemens.BitsToByte(Vars.Reserved_4, Vars.Reserved_5, Vars.Reserved_6, Vars.Reserved_7, Vars.Reserved_8, Vars.Reserved_9, Vars.Reserved_10, Vars.Reserved_11);
             buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, auxbyte, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, Vars.NivelSessao, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, Vars.Reserved_12, 0));
 
         }
         public int ReadVariables(List<PLC.Siemens.ReadMultiVariables> buffer, int index)
@@ -849,44 +980,50 @@ namespace _22079AI
 
             bit = 0;
             auxByte = (buffer[index].ObtemVariavel());
-            ManualRequest = (auxByte & Mask[bit]) != 0;
+            Vars.ManualRequest = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            AutoRequest = (auxByte & Mask[bit]) != 0;
+            Vars.AutoRequest = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Stop = (auxByte & Mask[bit]) != 0;
+            Vars.Stop = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Start = (auxByte & Mask[bit]) != 0;
+            Vars.Start = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_0 = (auxByte & Mask[bit]) != 0;
+            Vars.CameraReady = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_1 = (auxByte & Mask[bit]) != 0;
+            Vars.VisonReady = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_2 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_2 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_3 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_3 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
             index = index + 1;
             bit = 0;
             auxByte = (buffer[index].ObtemVariavel());
-            Reserved_4 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_4 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_5 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_5 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_6 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_6 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_7 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_7 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_8 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_8 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_9 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_9 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_10 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_10 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            Reserved_11 = (auxByte & Mask[bit]) != 0;
+            Vars.Reserved_11 = (auxByte & Mask[bit]) != 0;
+            index = index + 1;
+            Vars.NivelSessao = (buffer[index].ObtemVariavel());
+            index = index + 1;
+            Vars.Reserved_12 = (buffer[index].ObtemVariavel());
             index = index + 1;
 
             return index;
         }
+        public void writeClassValues(variables Values)
+        { }
     }
     #endregion
 
