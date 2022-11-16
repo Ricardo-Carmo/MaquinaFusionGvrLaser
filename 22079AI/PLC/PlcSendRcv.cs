@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Diagnostics;
+using System.Runtime.InteropServices.WindowsRuntime;
 
 namespace _22079AI
 {
@@ -66,9 +67,9 @@ namespace _22079AI
         private Inputs _Dis = new Inputs();
         private Outputs _Dos = new Outputs();
         private bool SendRequest = new bool();
-        private DateTime LastWriteTime;
+        private DateTime LastWriteTime, UpDateHourTick;
         private double MinComTime = 1500;
-        
+
         #region ReadWritePlc
 
         /*
@@ -83,7 +84,7 @@ namespace _22079AI
 
         public void WriteReadPlc()
         {
-           PLC1 = new Siemens(VariaveisAuxiliares.iniPath);
+            PLC1 = new Siemens(VariaveisAuxiliares.iniPath);
 
             while (this.isAlive)
             {
@@ -111,11 +112,12 @@ namespace _22079AI
                 ArrayIn.Clear();
                 ArrayOut.Clear();
 
-                HmiPlcNewDisc.writeClassValues(_HmiPlcNewDisc.menber) ;
+                HmiPlcNewDisc.writeClassValues(_HmiPlcNewDisc.menber);
                 HmiPlcFeedbackdisc.writeClassValues(_HmiPlcFeedbackdisc.menber);
                 CmdTapetes = _CmdTapetes;
                 CmdVibrador = _CmdVibrador;
                 CmdCiclo = _CmdCiclo;
+                CmdCiclo.Vars.DateToPlc = DateTime.Now;
                 FirstConetion = true;
 
                 while (FirstConetion)
@@ -126,8 +128,8 @@ namespace _22079AI
                         //inicializa contador de tempo
                         Startdate = DateTime.Now;
 
-                    //    Task Recieve = Task.Run(() =>
-                     //   {
+                        Task Recieve = Task.Run(() =>
+                        {
                             //Limpa listagens de variaveis
                             ArrayIn.Clear();
                             //multiplexa variaveis para lista
@@ -140,9 +142,10 @@ namespace _22079AI
                             _Dos.CreatReadList(ArrayIn);
                             //Le chunk de memoria do PLC para a listagem
                             PLC1.LeSequenciaTags(Siemens.MemoryArea.DB, ArrayIn.ToArray(), 400, 0);
-                    //    }
-                    //    );
-                    //    Recieve.Wait();
+                        }
+                        );
+                        //Thread.Sleep(1);
+                        Recieve.Wait();
 
                         //Calculo final do tempo de ciclo
                         leituras = (DateTime.Now - Startdate).TotalMilliseconds;
@@ -175,54 +178,64 @@ namespace _22079AI
 
 
 
-                        //SendRequest = (PlcHmiNewDisc.menber.ID == _PlcHmiNewDisc.menber.ID && PlcHmiFeedbackdisc.menber.ID == _PlcHmiFeedbackdisc.menber.ID);
+                        //SendRequest = (HmiPlcNewDisc..Equals(_HmiPlcNewDisc.menber) && HmiPlcFeedbackdisc.menber.Equals(_HmiPlcFeedbackdisc.menber))
+                        //            && CmdTapetes.Vars.Equals(_CmdTapetes.Vars) && CmdVibrador.Vars.Equals(_CmdVibrador.Vars) && CmdCiclo.Vars.Equals(_CmdCiclo.Vars);
 
 
+                        SendRequest = HmiPlcNewDisc.CompareClassEq(_HmiPlcNewDisc.menber) && HmiPlcFeedbackdisc.CompareClassEq(_HmiPlcFeedbackdisc.menber)
+                                    && CmdTapetes.CompareClassEq(_CmdTapetes.Vars) && CmdVibrador.CompareClassEq(_CmdVibrador.Vars) && CmdCiclo.CompareClassEq(_CmdCiclo.Vars);
 
-                        lock (PublicVarLock) { 
+                        lock (PublicVarLock) {
+                         if( (DateTime.Now - UpDateHourTick).TotalHours > 1)
+                            {
+                                CmdCiclo.Vars.DateToPlc = DateTime.Now;
+                                UpDateHourTick = DateTime.Now;
+                            }
+                            
 
-                        _HmiPlcNewDisc.writeClassValues(HmiPlcNewDisc.menber) ;
-                        _HmiPlcFeedbackdisc.writeClassValues(HmiPlcFeedbackdisc.menber) ;
-                        _CmdTapetes = CmdTapetes;
-                        _CmdVibrador = CmdVibrador;
-                        _CmdCiclo = CmdCiclo;
+                        _HmiPlcNewDisc.writeClassValues(HmiPlcNewDisc.menber);
+                        _HmiPlcFeedbackdisc.writeClassValues(HmiPlcFeedbackdisc.menber);
+                        _CmdTapetes.writeClassValues(CmdTapetes.Vars);
+                        _CmdVibrador.writeClassValues(CmdVibrador.Vars);
+                        _CmdCiclo.writeClassValues(CmdCiclo.Vars);
 
 
                         PlcHmiNewDisc.writeClassValues(_PlcHmiNewDisc.menber);
                         PlcHmiFeedbackdisc.writeClassValues(_PlcHmiFeedbackdisc.menber);
-                        StaTapetes = _StaTapetes;
-                        StaVibrador = _StaVibrador;
-                        StaCiclo = _StaCiclo;
-                        Dis = _Dis;
-                        Dos = _Dos;
+                        StaTapetes.writeClassValues(_StaTapetes.Vars);
+                        StaVibrador.writeClassValues(_StaVibrador.Vars);
+                        StaCiclo.writeClassValues(_StaCiclo.Vars);
+                        Dis.writeClassValues(_Dis.Vars);
+                        Dos.writeClassValues(_Dos.Vars);
 
                         }
 
 
                         //}
 
-                        //if (!(SendRequest))
-                        //{
-                        //   Task Send = Task.Run(() =>
-                        //    {
-                        //multiplexa listagens de saida de variaveis
-                        ArrayOut.Clear();
-                                _HmiPlcNewDisc.WriteVariables(ArrayOut);
-                                _HmiPlcFeedbackdisc.WriteVariables(ArrayOut);
-                                _CmdTapetes.WriteVariables(ArrayOut);
-                                _CmdVibrador.WriteVariables(ArrayOut);
-                                _CmdCiclo.WriteVariables(ArrayOut);
-                                //Envia chunk de memoria do PLC
-                                PLC1.EnviaSequenciaTagsRT(Siemens.MemoryArea.DB, ArrayOut.ToArray(), 401, 0);
-                                LastWriteTime = DateTime.Now;
-                                //desmultiplexa listagens de entrada em variaveis de utilizador
-                       //     }
-                       //    );
-                      //      Send.Wait();
-                        //}
+                        if (!(SendRequest))
+                        {
+                            Task Send = Task.Run(() =>
+                             {
+                                 //multiplexa listagens de saida de variaveis
+                                 ArrayOut.Clear();
+                                 _HmiPlcNewDisc.WriteVariables(ArrayOut);
+                                 _HmiPlcFeedbackdisc.WriteVariables(ArrayOut);
+                                 _CmdTapetes.WriteVariables(ArrayOut);
+                                 _CmdVibrador.WriteVariables(ArrayOut);
+                                 _CmdCiclo.WriteVariables(ArrayOut);
+                                 //Envia chunk de memoria do PLC
+                                 PLC1.EnviaSequenciaTagsRT(Siemens.MemoryArea.DB, ArrayOut.ToArray(), 401, 0);
+                                 LastWriteTime = DateTime.Now;
+                                 //desmultiplexa listagens de entrada em variaveis de utilizador
+                             }
+                            );
+                            Send.Wait();
+                            //Thread.Sleep(1);
+                        }
                         //Calculo final do tempo de ciclo
                         CycleTime = (DateTime.Now - Startdate).TotalMilliseconds;
-                        Thread.Sleep(0);
+                        //Debug.WriteLine("TempoComPlc: " + CycleTime);
                     }
                     catch
                     {
@@ -252,6 +265,10 @@ namespace _22079AI
         public double PulseEncoderS2;
         public double PulseExpel;
         public double DelayExpel;
+        public DateTime EntradaS1;
+        public DateTime InicioInspecao;
+        public DateTime FinalInspecao;
+        public DateTime SaidaS2;
         public short result;
         public short reserved_0;
         public short reserved_1;
@@ -273,6 +290,10 @@ namespace _22079AI
             buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.DInt, 0));
             buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.DInt, 0));
             buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.DInt, 0));
+            buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.DTL, 0));
+            buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.DTL, 0));
+            buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.DTL, 0));
+            buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.DTL, 0));
             buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte, 0));
             buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte, 0));
             buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte, 0));
@@ -290,6 +311,10 @@ namespace _22079AI
             buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.DInt, menber.PulseEncoderS2, 0));
             buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.DInt, menber.PulseExpel, 0));
             buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.DInt, menber.DelayExpel, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.DTL, menber.EntradaS1, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.DTL, menber.InicioInspecao, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.DTL, menber.FinalInspecao, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.DTL, menber.SaidaS2, 0));
             buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, menber.result, 0));
             buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, menber.reserved_0, 0));
             buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, menber.reserved_1, 0));
@@ -313,6 +338,14 @@ namespace _22079AI
             index++;
             menber.DelayExpel = buffer[index].ObtemVariavel();
             index++;
+            menber.EntradaS1 = (buffer[index].ObtemVariavel());
+            index++;
+            menber.InicioInspecao = (buffer[index].ObtemVariavel());
+            index++;
+            menber.FinalInspecao = (buffer[index].ObtemVariavel());
+            index++;
+            menber.SaidaS2 = (buffer[index].ObtemVariavel());
+            index++;
             menber.result = buffer[index].ObtemVariavel();
             index++;
             menber.reserved_0 = buffer[index].ObtemVariavel();
@@ -335,11 +368,16 @@ namespace _22079AI
 
         public void writeClassValues(DiscMenbers Values)
         {
+
             menber.ID = Values.ID;
             menber.PulseEncoderS1 = Values.PulseEncoderS1;
             menber.PulseEncoderS2 = Values.PulseEncoderS2;
             menber.PulseExpel = Values.PulseExpel;
             menber.DelayExpel = Values.DelayExpel;
+            menber.EntradaS1 = Values.EntradaS1;
+            menber.InicioInspecao = Values.InicioInspecao;
+            menber.FinalInspecao = Values.FinalInspecao;
+            menber.SaidaS2 = Values.SaidaS2;
             menber.result = Values.result;
             menber.reserved_0 = Values.reserved_0;
             menber.reserved_1 = Values.reserved_1;
@@ -349,27 +387,52 @@ namespace _22079AI
             menber.reserved_5 = Values.reserved_5;
             menber.reserved_6 = Values.reserved_6;
         }
+
+        public bool CompareClassEq(DiscMenbers Values)
+        {
+            bool comp1 = menber.ID == Values.ID &&
+            menber.PulseEncoderS1 == Values.PulseEncoderS1 &&
+            menber.PulseEncoderS2 == Values.PulseEncoderS2 &&
+            menber.PulseExpel == Values.PulseExpel &&
+            menber.DelayExpel == Values.DelayExpel &&
+            menber.EntradaS1 == Values.EntradaS1 &&
+            menber.InicioInspecao == Values.InicioInspecao &&
+            menber.FinalInspecao == Values.FinalInspecao &&
+            menber.SaidaS2 == Values.SaidaS2 &&
+            menber.result == Values.result &&
+            menber.reserved_0 == Values.reserved_0 &&
+            menber.reserved_1 == Values.reserved_1 &&
+            menber.reserved_2 == Values.reserved_2 &&
+            menber.reserved_3 == Values.reserved_3 &&
+            menber.reserved_4 == Values.reserved_4 &&
+            menber.reserved_5 == Values.reserved_5 &&
+            menber.reserved_6 == Values.reserved_6;
+
+            return comp1;
+        }
+
     }
 
     public class Inputs
     {
-        public class variables { 
-        public bool Di0;
-        public bool Di1;
-        public bool Di2;
-        public bool Di3;
-        public bool Di4;
-        public bool Di5;
-        public bool Di6;
-        public bool Di7;
-        public bool Di8;
-        public bool Di9;
-        public bool Di10;
-        public bool Di11;
-        public bool Di12;
-        public bool Di13;
-        public bool Di14;
-        public bool Di15;
+        public class variables
+        {
+            public bool Di0;
+            public bool Di1;
+            public bool Di2;
+            public bool Di3;
+            public bool Di4;
+            public bool Di5;
+            public bool Di6;
+            public bool Di7;
+            public bool Di8;
+            public bool Di9;
+            public bool Di10;
+            public bool Di11;
+            public bool Di12;
+            public bool Di13;
+            public bool Di14;
+            public bool Di15;
         }
         public variables Vars = new variables();
 
@@ -457,6 +520,28 @@ namespace _22079AI
             Vars.Di15 = Values.Di15;
 
         }
+        public bool CompareClassEq(variables Values)
+        {
+            bool comp1 = Vars.Di0 == Values.Di0 &&
+            Vars.Di1 == Values.Di1 &&
+            Vars.Di2 == Values.Di2 &&
+            Vars.Di3 == Values.Di3 &&
+            Vars.Di4 == Values.Di4 &&
+            Vars.Di5 == Values.Di5 &&
+            Vars.Di6 == Values.Di6 &&
+            Vars.Di7 == Values.Di7 &&
+            Vars.Di8 == Values.Di8 &&
+            Vars.Di9 == Values.Di9 &&
+            Vars.Di10 == Values.Di10 &&
+            Vars.Di11 == Values.Di11 &&
+            Vars.Di12 == Values.Di12 &&
+            Vars.Di13 == Values.Di13 &&
+            Vars.Di14 == Values.Di14 &&
+            Vars.Di15 == Values.Di15;
+
+            return comp1;
+        }
+
     }
 
     public class Outputs
@@ -544,6 +629,28 @@ namespace _22079AI
 
             return index;
         }
+        public bool CompareClassEq(variables Values)
+        {
+            bool comp1 = Vars.Do0 == Values.Do0 &&
+            Vars.Do1 == Values.Do1 &&
+            Vars.Do2 == Values.Do2 &&
+            Vars.Do3 == Values.Do3 &&
+            Vars.Do4 == Values.Do4 &&
+            Vars.Do5 == Values.Do5 &&
+            Vars.Do6 == Values.Do6 &&
+            Vars.Do7 == Values.Do7 &&
+            Vars.Do8 == Values.Do8 &&
+            Vars.Do9 == Values.Do9 &&
+            Vars.Do10 == Values.Do10 &&
+            Vars.Do11 == Values.Do11 &&
+            Vars.Do12 == Values.Do12 &&
+            Vars.Do13 == Values.Do13 &&
+            Vars.Do14 == Values.Do14 &&
+            Vars.Do15 == Values.Do15;
+
+            return comp1;
+        }
+
         public void writeClassValues(variables Values)
         {
             Vars.Do0 = Values.Do0;
@@ -567,17 +674,18 @@ namespace _22079AI
 
     public class Tapetesin
     {
-        public class variables { 
-        public bool Enabled;
-        public bool Running;
-        public bool Fault;
-        public bool Reserved_1;
-        public bool Reserved_2;
-        public bool Reserved_3;
-        public bool Reserved_4;
-        public bool Reserved_5;
-        public byte Reserved_6;
-        public int actspeed;
+        public class variables
+        {
+            public bool Enabled;
+            public bool Running;
+            public bool Fault;
+            public bool Reserved_1;
+            public bool Reserved_2;
+            public bool Reserved_3;
+            public bool Reserved_4;
+            public bool Reserved_5;
+            public byte Reserved_6;
+            public int actspeed;
         }
         public variables Vars = new variables();
         public void CreatReadList(List<PLC.Siemens.ReadMultiVariables> buffer)
@@ -629,24 +737,50 @@ namespace _22079AI
 
             return index;
         }
-            public void writeClassValues(variables Values)
-            {
-            }
+        public void writeClassValues(variables Values)
+        {
+            Vars.Enabled = Values.Enabled;
+            Vars.Running = Values.Running;
+            Vars.Fault = Values.Fault;
+            Vars.Reserved_1 = Values.Reserved_1;
+            Vars.Reserved_2 = Values.Reserved_2;
+            Vars.Reserved_3 = Values.Reserved_3;
+            Vars.Reserved_4 = Values.Reserved_4;
+            Vars.Reserved_5 = Values.Reserved_5;
+            Vars.Reserved_6 = Values.Reserved_6;
+            Vars.actspeed = Values.actspeed;
         }
+        public bool CompareClassEq(variables Values)
+        {
+            bool comp1 = Vars.Enabled == Values.Enabled &&
+            Vars.Running == Values.Running &&
+            Vars.Fault == Values.Fault &&
+            Vars.Reserved_1 == Values.Reserved_1 &&
+            Vars.Reserved_2 == Values.Reserved_2 &&
+            Vars.Reserved_3 == Values.Reserved_3 &&
+            Vars.Reserved_4 == Values.Reserved_4 &&
+            Vars.Reserved_5 == Values.Reserved_5 &&
+            Vars.Reserved_6 == Values.Reserved_6 &&
+            Vars.actspeed == Values.actspeed;
+
+            return comp1;
+        }
+    }
 
     public class TapetesOut
     {
-        public class variables { 
-        public bool Enable;
-        public bool Run;
-        public bool Reset;
-        public bool Reserved_1;
-        public bool Reserved_2;
-        public bool Reserved_3;
-        public bool Reserved_4;
-        public bool Reserved_5;
-        public byte Reserved_6;
-        public int setspeed;
+        public class variables
+        {
+            public bool Enable;
+            public bool Run;
+            public bool Reset;
+            public bool Reserved_1;
+            public bool Reserved_2;
+            public bool Reserved_3;
+            public bool Reserved_4;
+            public bool Reserved_5;
+            public byte Reserved_6;
+            public int setspeed;
         }
         public variables Vars = new variables();
         public void CreatReadList(List<PLC.Siemens.ReadMultiVariables> buffer)
@@ -699,22 +833,52 @@ namespace _22079AI
             return index;
         }
         public void writeClassValues(variables Values)
-        { }
+        {
 
+
+            Vars.Enable = Values.Enable;
+            Vars.Run = Values.Run;
+            Vars.Reset = Values.Reset;
+            Vars.Reserved_1 = Values.Reserved_1;
+            Vars.Reserved_2 = Values.Reserved_2;
+            Vars.Reserved_3 = Values.Reserved_3;
+            Vars.Reserved_4 = Values.Reserved_4;
+            Vars.Reserved_5 = Values.Reserved_5;
+            Vars.Reserved_6 = Values.Reserved_6;
+            Vars.setspeed = Values.setspeed;
         }
+        public bool CompareClassEq(variables Values)
+        {
+
+            bool comp1 = Vars.Enable == Values.Enable &&
+            Vars.Run == Values.Run &&
+            Vars.Reset == Values.Reset &&
+            Vars.Reserved_1 == Values.Reserved_1 &&
+            Vars.Reserved_2 == Values.Reserved_2 &&
+            Vars.Reserved_3 == Values.Reserved_3 &&
+            Vars.Reserved_4 == Values.Reserved_4 &&
+            Vars.Reserved_5 == Values.Reserved_5 &&
+            Vars.Reserved_6 == Values.Reserved_6 &&
+            Vars.setspeed == Values.setspeed;
+
+            return comp1;
+        }
+
+    }
 
     public class Vibradoresin
     {
-        public class variables { 
-        public bool Enabled;
-        public bool Running;
-        public bool Fault;
-        public bool Reserved_1;
-        public bool Reserved_2;
-        public bool Reserved_3;
-        public bool Reserved_4;
-        public bool Reserved_5;
-        public byte Reserved_6;
+        public class variables
+        {
+            public bool Enabled;
+            public bool Running;
+            public bool Fault;
+            public bool Reserved_1;
+            public bool Reserved_2;
+            public bool Reserved_3;
+            public bool Reserved_4;
+            public bool Reserved_5;
+            public byte Reserved_6;
         }
         public variables Vars = new variables();
         public void CreatReadList(List<PLC.Siemens.ReadMultiVariables> buffer)
@@ -727,13 +891,10 @@ namespace _22079AI
         public void WriteVariables(List<PLC.Siemens.WriteMultiVariables> buffer)
         {
             byte auxbyte = new byte();
-
             auxbyte = PLC.Siemens.BitsToByte(Vars.Enabled, Vars.Running, Vars.Fault, Vars.Reserved_1, Vars.Reserved_2, Vars.Reserved_3, Vars.Reserved_4, Vars.Reserved_5);
             buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, auxbyte, 0));
             auxbyte = Vars.Reserved_6;
             buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, auxbyte, 0));
-
-
         }
         public int ReadVariables(List<PLC.Siemens.ReadMultiVariables> buffer, int index)
         {
@@ -765,21 +926,46 @@ namespace _22079AI
             return index;
         }
         public void writeClassValues(variables Values)
-        { }
+        {
+            Vars.Enabled = Values.Enabled;
+            Vars.Running = Values.Running;
+            Vars.Fault = Values.Fault;
+            Vars.Reserved_1 = Values.Reserved_1;
+            Vars.Reserved_2 = Values.Reserved_2;
+            Vars.Reserved_3 = Values.Reserved_3;
+            Vars.Reserved_4 = Values.Reserved_4;
+            Vars.Reserved_5 = Values.Reserved_5;
+            Vars.Reserved_6 = Values.Reserved_6;
         }
+        public bool CompareClassEq(variables Values)
+        {
+            bool comp1 = Vars.Enabled == Values.Enabled &&
+            Vars.Running == Values.Running &&
+            Vars.Fault == Values.Fault &&
+            Vars.Reserved_1 == Values.Reserved_1 &&
+            Vars.Reserved_2 == Values.Reserved_2 &&
+            Vars.Reserved_3 == Values.Reserved_3 &&
+            Vars.Reserved_4 == Values.Reserved_4 &&
+            Vars.Reserved_5 == Values.Reserved_5 &&
+            Vars.Reserved_6 == Values.Reserved_6;
+
+            return comp1;
+        }
+    }
 
     public class VibradoresOut
     {
-        public class variables { 
-        public bool Enable;
-        public bool Run;
-        public bool Reset;
-        public bool Reserved_1;
-        public bool Reserved_2;
-        public bool Reserved_3;
-        public bool Reserved_4;
-        public bool Reserved_5;
-        public byte Reserved_6;
+        public class variables
+        {
+            public bool Enable;
+            public bool Run;
+            public bool Reset;
+            public bool Reserved_1;
+            public bool Reserved_2;
+            public bool Reserved_3;
+            public bool Reserved_4;
+            public bool Reserved_5;
+            public byte Reserved_6;
         }
         public variables Vars = new variables();
         public void CreatReadList(List<PLC.Siemens.ReadMultiVariables> buffer)
@@ -829,30 +1015,61 @@ namespace _22079AI
             return index;
         }
         public void writeClassValues(variables Values)
-        { }
+        {
+
+
+            Vars.Enable = Values.Enable;
+            Vars.Run = Values.Run;
+            Vars.Reset = Values.Reset;
+            Vars.Reserved_1 = Values.Reserved_1;
+            Vars.Reserved_2 = Values.Reserved_2;
+            Vars.Reserved_3 = Values.Reserved_3;
+            Vars.Reserved_4 = Values.Reserved_4;
+            Vars.Reserved_5 = Values.Reserved_5;
+            Vars.Reserved_6 = Values.Reserved_6;
+
+        }
+
+        public bool CompareClassEq(variables Values)
+        {
+
+            bool comp1 = Vars.Enable == Values.Enable &&
+            Vars.Run == Values.Run &&
+            Vars.Reset == Values.Reset &&
+            Vars.Reserved_1 == Values.Reserved_1 &&
+            Vars.Reserved_2 == Values.Reserved_2 &&
+            Vars.Reserved_3 == Values.Reserved_3 &&
+            Vars.Reserved_4 == Values.Reserved_4 &&
+            Vars.Reserved_5 == Values.Reserved_5 &&
+            Vars.Reserved_6 == Values.Reserved_6;
+
+            return comp1;
+        }
+
     }
 
     public class Cicloin
     {
-        public class variables { 
-        public bool InManual;
-        public bool InAuto;
-        public bool CycleOn;
-        public bool ReadyForAuto;
-        public bool TapeteReady;
-        public bool VibradorReady;
-        public bool AlimentadorReady;
-        public bool EmergencyOk;
-        public bool Reserved_5;
-        public bool Reserved_6;
-        public bool Reserved_7;
-        public bool Reserved_8;
-        public bool Reserved_9;
-        public bool Reserved_10;
-        public bool Reserved_11;
-        public bool Reserved_12;
-        public byte Reserved_13;
-        public byte Reserved_14;
+        public class variables
+        {
+            public bool InManual;
+            public bool InAuto;
+            public bool CycleOn;
+            public bool ReadyForAuto;
+            public bool TapeteReady;
+            public bool VibradorReady;
+            public bool AlimentadorReady;
+            public bool EmergencyOk;
+            public bool Reserved_5;
+            public bool Reserved_6;
+            public bool Reserved_7;
+            public bool Reserved_8;
+            public bool Reserved_9;
+            public bool Reserved_10;
+            public bool Reserved_11;
+            public bool Reserved_12;
+            public byte Reserved_13;
+            public byte Reserved_14;
         }
         public variables Vars = new variables();
         public void CreatReadList(List<PLC.Siemens.ReadMultiVariables> buffer)
@@ -926,36 +1143,84 @@ namespace _22079AI
             return index;
         }
         public void writeClassValues(variables Values)
-        { }
+        {
+            Vars.InManual = Values.InManual;
+            Vars.InAuto = Values.InAuto;
+            Vars.CycleOn = Values.CycleOn;
+            Vars.ReadyForAuto = Values.ReadyForAuto;
+            Vars.TapeteReady = Values.TapeteReady;
+            Vars.VibradorReady = Values.VibradorReady;
+            Vars.AlimentadorReady = Values.AlimentadorReady;
+            Vars.EmergencyOk = Values.EmergencyOk;
+            Vars.Reserved_5 = Values.Reserved_5;
+            Vars.Reserved_6 = Values.Reserved_6;
+            Vars.Reserved_7 = Values.Reserved_7;
+            Vars.Reserved_8 = Values.Reserved_8;
+            Vars.Reserved_9 = Values.Reserved_9;
+            Vars.Reserved_10 = Values.Reserved_10;
+            Vars.Reserved_11 = Values.Reserved_11;
+            Vars.Reserved_12 = Values.Reserved_12;
+            Vars.Reserved_13 = Values.Reserved_13;
+            Vars.Reserved_14 = Values.Reserved_14;
+
+        }
+
+        public bool CompareClassEq(variables Values)
+        {
+            bool comp1 = Vars.InManual == Values.InManual &&
+            Vars.InAuto == Values.InAuto &&
+            Vars.CycleOn == Values.CycleOn &&
+            Vars.ReadyForAuto == Values.ReadyForAuto &&
+            Vars.TapeteReady == Values.TapeteReady &&
+            Vars.VibradorReady == Values.VibradorReady &&
+            Vars.AlimentadorReady == Values.AlimentadorReady &&
+            Vars.EmergencyOk == Values.EmergencyOk &&
+            Vars.Reserved_5 == Values.Reserved_5 &&
+            Vars.Reserved_6 == Values.Reserved_6 &&
+            Vars.Reserved_7 == Values.Reserved_7 &&
+            Vars.Reserved_8 == Values.Reserved_8 &&
+            Vars.Reserved_9 == Values.Reserved_9 &&
+            Vars.Reserved_10 == Values.Reserved_10 &&
+            Vars.Reserved_11 == Values.Reserved_11 &&
+            Vars.Reserved_12 == Values.Reserved_12 &&
+            Vars.Reserved_13 == Values.Reserved_13 &&
+            Vars.Reserved_14 == Values.Reserved_14;
+
+            return comp1;
+
+        }
     }
 
     public class CicloOut
     {
-        public class variables { 
-        public bool ManualRequest;
-        public bool AutoRequest;
-        public bool Stop;
-        public bool Start;
-        public bool CameraReady;
-        public bool VisonReady;
-        public bool Reserved_2;
-        public bool Reserved_3;
-        public bool Reserved_4;
-        public bool Reserved_5;
-        public bool Reserved_6;
-        public bool Reserved_7;
-        public bool Reserved_8;
-        public bool Reserved_9;
-        public bool Reserved_10;
-        public bool Reserved_11;
-        public byte NivelSessao;
-        public byte Reserved_12;
+        public class variables
+        {
+            public bool ManualRequest;
+            public bool AutoRequest;
+            public bool Stop;
+            public bool Start;
+            public bool CameraReady;
+            public bool VisonReady;
+            public bool Reserved_2;
+            public bool Reserved_3;
+            public bool Reserved_4;
+            public bool Reserved_5;
+            public bool Reserved_6;
+            public bool Reserved_7;
+            public bool Reserved_8;
+            public bool Reserved_9;
+            public bool Reserved_10;
+            public bool Reserved_11;
+            public DateTime DateToPlc;
+            public byte NivelSessao;
+            public byte Reserved_12;
         }
         public variables Vars = new variables();
         public void CreatReadList(List<PLC.Siemens.ReadMultiVariables> buffer)
         {
             buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte, 0));
             buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte, 0));
+            buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.DTL, 0));
             buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte, 0));
             buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte, 0));
         }
@@ -967,6 +1232,7 @@ namespace _22079AI
             buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, auxbyte, 0));
             auxbyte = PLC.Siemens.BitsToByte(Vars.Reserved_4, Vars.Reserved_5, Vars.Reserved_6, Vars.Reserved_7, Vars.Reserved_8, Vars.Reserved_9, Vars.Reserved_10, Vars.Reserved_11);
             buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, auxbyte, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.DTL, Vars.DateToPlc, 0));
             buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, Vars.NivelSessao, 0));
             buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, Vars.Reserved_12, 0));
 
@@ -1015,6 +1281,8 @@ namespace _22079AI
             bit = bit + 1;
             Vars.Reserved_11 = (auxByte & Mask[bit]) != 0;
             index = index + 1;
+            Vars.DateToPlc = (buffer[index].ObtemVariavel());
+            index = index + 1;
             Vars.NivelSessao = (buffer[index].ObtemVariavel());
             index = index + 1;
             Vars.Reserved_12 = (buffer[index].ObtemVariavel());
@@ -1023,7 +1291,53 @@ namespace _22079AI
             return index;
         }
         public void writeClassValues(variables Values)
-        { }
+        {
+            Vars.ManualRequest = Values.ManualRequest;
+            Vars.AutoRequest = Values.AutoRequest;
+            Vars.Stop = Values.Stop;
+            Vars.Start = Values.Start;
+            Vars.CameraReady = Values.CameraReady;
+            Vars.VisonReady = Values.VisonReady;
+            Vars.Reserved_2 = Values.Reserved_2;
+            Vars.Reserved_3 = Values.Reserved_3;
+            Vars.Reserved_4 = Values.Reserved_4;
+            Vars.Reserved_5 = Values.Reserved_5;
+            Vars.Reserved_6 = Values.Reserved_6;
+            Vars.Reserved_7 = Values.Reserved_7;
+            Vars.Reserved_8 = Values.Reserved_8;
+            Vars.Reserved_9 = Values.Reserved_9;
+            Vars.Reserved_10 = Values.Reserved_10;
+            Vars.Reserved_11 = Values.Reserved_11;
+            Vars.DateToPlc = Values.DateToPlc;
+            Vars.NivelSessao = Values.NivelSessao;
+            Vars.Reserved_12 = Values.Reserved_12;
+        }
+        public bool CompareClassEq(variables Values)
+        {
+            bool comp1 =
+            Vars.ManualRequest == Values.ManualRequest &&
+            Vars.AutoRequest == Values.AutoRequest &&
+            Vars.Stop == Values.Stop &&
+            Vars.Start == Values.Start &&
+            Vars.CameraReady == Values.CameraReady &&
+            Vars.VisonReady == Values.VisonReady &&
+            Vars.Reserved_2 == Values.Reserved_2 &&
+            Vars.Reserved_3 == Values.Reserved_3 &&
+            Vars.Reserved_4 == Values.Reserved_4 &&
+            Vars.Reserved_5 == Values.Reserved_5 &&
+            Vars.Reserved_6 == Values.Reserved_6 &&
+            Vars.Reserved_7 == Values.Reserved_7 &&
+            Vars.Reserved_8 == Values.Reserved_8 &&
+            Vars.Reserved_9 == Values.Reserved_9 &&
+            Vars.Reserved_10 == Values.Reserved_10 &&
+            Vars.Reserved_11 == Values.Reserved_11 &&
+            Vars.DateToPlc == Values.DateToPlc &&
+            Vars.NivelSessao == Values.NivelSessao &&
+            Vars.Reserved_12 == Values.Reserved_12;
+
+            return comp1;
+        }
+
     }
     #endregion
 

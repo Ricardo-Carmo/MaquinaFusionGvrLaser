@@ -12,7 +12,11 @@ using System.Drawing;
 using System.Windows.Forms;
 using System.ComponentModel;
 using PLC;
+using System.Collections.Concurrent;
 using System.Drawing.Text;
+using System.Threading.Tasks;
+using System.Linq.Expressions;
+
 
 namespace _22079AI
 {
@@ -32,7 +36,7 @@ namespace _22079AI
         private bool inspecaoOK = false;
         private string diretorioImagens = @"C:\STREAK\Imagens Gravadas\";
         private string scriptDirPath = Application.StartupPath + @"\Scripts\";
-
+        private DiscCom LastInspectedDisc = new DiscCom();
         public string FicheiroIni { get; } = Application.StartupPath + @"\InspectionConfig.ini";
 
         public string TipoInspecao { get; private set; } = "CORK";
@@ -100,7 +104,8 @@ namespace _22079AI
 
         public double AlturaFacaCamera { get { return Math.Round(this.alturaFacaCamera, 1); } }
 
-        List<DiscMenbers> ListaDiscosInspecionados = new List<DiscMenbers>();
+        ConcurrentQueue<DiscMenbers> ListaDiscosInspecionados = new ConcurrentQueue<DiscMenbers>();
+        ConcurrentQueue<HObject> ListaImagensPorInspecionar = new ConcurrentQueue<HObject>();
 
         /// <summary>
         /// 0 - SEM RESULTADO / 1 - OK / 2 - OK INV (REWORK) / 3 - NOK
@@ -142,6 +147,7 @@ namespace _22079AI
         public bool InspecoesSimuladas { get; set; } = false;
 
         public DateTime TempoInicioInspecao { get; private set; } = DateTime.MinValue;
+        public DateTime TempoTotalInspecao = new DateTime();
         public int TempoAquisicao
         {
             get; private set;
@@ -256,27 +262,44 @@ namespace _22079AI
             Forms.MainForm.PlcControl.CmdCiclo.Vars.VisonReady = this.CarregarParametrosInspecao();
 
             new Thread(this.AcquisitionCycle).Start();
-
+            new Thread(this.processaimagens).Start();
             new Thread(this.EnviaResultadosPLC).Start();
         }
 
         private void EnviaResultadosPLC()
         {
+            DateTime TimeBetwenDisc = new DateTime();
+            bool Measure1 = true;
+            DiscMenbers SendPlcDiscInfo;
+            DiscCom NewRcvDiscPlc = new DiscCom(), LastSendDiscPlc = new DiscCom();
+            int PlcSleepWriteCom = 0;
+            NewRcvDiscPlc = Forms.MainForm.PlcControl.PlcHmiFeedbackdisc;
+            LastSendDiscPlc = Forms.MainForm.PlcControl.HmiPlcNewDisc;
+
             while (this.isAlive)
             {
-                if (ListaDiscosInspecionados.Count() > 0 && Forms.MainForm.PlcControl.PlcReadyForNewDIsc)
+                if ((NewRcvDiscPlc.menber.ID == LastSendDiscPlc.menber.ID))
                 {
-                    lock (lockLista)
+                    if (Measure1==true   )
                     {
-                        Forms.MainForm.PlcControl.HmiPlcNewDisc.writeClassValues(ListaDiscosInspecionados.First());
-                        ListaDiscosInspecionados.RemoveAt(0);
-
-                        Debug.WriteLine("### EnviaResultadosPLC - Enviou Resultado com ID: " + Forms.MainForm.PlcControl.HmiPlcNewDisc.menber.ID);
+                        Debug.WriteLine("##Tempo Entre discos: " + (DateTime.Now - TimeBetwenDisc).TotalMilliseconds.ToString() );
+                        Measure1 = false;
                     }
-
+                    if (ListaDiscosInspecionados.TryDequeue(out SendPlcDiscInfo))
+                    {
+                        //Envia resultados Plc apos verificar a lista
+                        SendPlcDiscInfo.SaidaS2 = DateTime.Now;
+                        Forms.MainForm.PlcControl.HmiPlcNewDisc.writeClassValues(SendPlcDiscInfo);
+                        LastSendDiscPlc.writeClassValues(SendPlcDiscInfo);
+                        Debug.WriteLine("### EnviaResultadosPLC - Enviou Resultado com ID: " + SendPlcDiscInfo.ID);
+                        Measure1 = true;
+                        TimeBetwenDisc = DateTime.Now;
+                    }
                 }
-
+                //Thread.Sleep(PlcSleepWriteCom);
+               
             }
+
 
         }
 
@@ -550,7 +573,9 @@ namespace _22079AI
             bool firstCycle = true;
             this.numberAqThreads = 0;
             this.numberInspThreads = 0;
-            
+            HObject ClearList;
+
+            while (ListaImagensPorInspecionar.TryDequeue(out ClearList)) { };
 
             while (this.isAlive)
                 try
@@ -567,49 +592,24 @@ namespace _22079AI
                             tempImg.GenEmptyObj();
 
                             //Adquire a imagem
+                            //Forms.MainForm.PlcControl.CmdCiclo.Vars.CameraReady = true;
                             HOperatorSet.GrabImageAsync(out tempImg, this.acqHandle, -1);
+                            //Forms.MainForm.PlcControl.CmdCiclo.Vars.CameraReady = false;
 
-                            //Roda a imagem, se necessário
-                            if (this.offsetRotacao != 0)
-                                HOperatorSet.RotateImage(tempImg, out tempImg, this.offsetRotacao, "constant");
 
                             //copia a imagem adquirida para a atual
-                            lock (this.aqcLock)
-                                HOperatorSet.CopyImage(tempImg, out this.imagemAtual);
-
-
-                            //Mostra a imagem live no ecrã
-                            //Mostra a região
-                            if (FormularioReceita.FormActivo && Forms.MainForm.Receita.ID == FormularioReceita.IDRegisto)
-                                regiaoPesquisaP2.X = FormularioReceita.compRegiao;
-                            else
-                                regiaoPesquisaP2.X = Forms.MainForm.Receita.CompRegiaoInsp;
+                            //lock (this.aqcLock)
+                            //    HOperatorSet.CopyImage(tempImg, out this.imagemAtual);
 
 
 
-                            if (this.MostraRegiaoPesquisa)
-                                this.CamInsp.DisplayImage(HalconFunctions.HobjectToHimage(this.imagemAtual), this.regiaoPesquisaP1, this.regiaoPesquisaP2);
-                            else
-                                this.CamLive.DisplayImage(this.imagemAtual, (int)this.numberInspThreads);
+                            this.CamLive.DisplayImage(tempImg.Clone(), (int)this.numberInspThreads);
 
-                            this.numberInspThreads++;
-                            //Vai buscar o ID ao PLC
-                            //Envia a imagem e ID para a thread de inspeção
-                            NumeroThreads ++;
-
-                            this.InspecaoEmCurso = true;
-                            //new Thread(this.CallInspection).Start(); //inicia uma instância da inspeção
-
-                            Debug.WriteLine("InspNumber antes da Thread: " + this.numberInspThreads);
-                            int Auxnumber = (int)this.numberInspThreads;
-                            HObject AuxImage = this.imagemAtual;
-                            Thread NewThread = new Thread(() => this.CallInspection(AuxImage, Auxnumber, (int)this.numberInspThreads));
-                            NewThread.Start();
+                            ListaImagensPorInspecionar.Enqueue(tempImg.Clone());
 
 
-
-
-                           
+                            //Thread NewThread = new Thread(() => this.CallInspection(AuxImage, Auxnumber, (int)this.numberInspThreads, DiscId));
+                            // NewThread.Start();
                             //trigger à camera se não tiver em trigger
                             //if (!this.sistemaOff)
                             //    if (!this.InspecaoEmCurso && this.ordemTrigger)
@@ -620,7 +620,7 @@ namespace _22079AI
                             //    }
 
                             //liberta os recursos da imagem temporária
-                            tempImg.Dispose(); tempImg = null;
+                            //tempImg.Dispose(); tempImg = null;
 
                         }
                         catch (Exception ex)
@@ -664,12 +664,73 @@ namespace _22079AI
             }
         }
 
-
-        private void CallInspection(HObject ImagemInInspecao, int InspNumber, int TotalInspNumber)
+        private void processaimagens()
         {
+            HObject AuxImage = new HObject();
+            DateTime Start1 = new DateTime() ;
+            bool Measure1=true;
+
+            while (this.isAlive)
+            {
+
+                if (this.LastInspectedDisc.menber.ID != Forms.MainForm.PlcControl.PlcHmiNewDisc.menber.ID)
+                {
+                    if (Measure1 == true)
+                    {
+                        Debug.WriteLine("Tempo Entre Id Entrada PLC: " + (DateTime.Now-Start1).TotalMilliseconds.ToString());
+                        Measure1 = false;
+                    }
+                    if (ListaImagensPorInspecionar.TryDequeue(out AuxImage))
+                    {
+                        if (AuxImage!= null) { 
+
+                        //Incrementa numero de treads ativas
+                        this.numberInspThreads++;
+                        NumeroThreads++;
+
+                        this.InspecaoEmCurso = true;
+                        //new Thread(this.CallInspection).Start(); //inicia uma instância da inspeção
+
+                        //Debug.WriteLine("InspNumber antes da Thread: " + this.numberInspThreads);
+                        int Auxnumber = (int)this.numberInspThreads;
+                        //Leitura variavel PLC
+                        DiscCom DiscId = new DiscCom();
+                        DiscId.writeClassValues(Forms.MainForm.PlcControl.PlcHmiNewDisc.menber);
+                        //Escrita variaveis PLC
+                        Forms.MainForm.PlcControl.HmiPlcFeedbackdisc.writeClassValues(DiscId.menber);
+                        Debug.WriteLine("Inicio Task com o ID: " + DiscId.menber.ID);
+                        
+                        this.LastInspectedDisc.writeClassValues(DiscId.menber);
+
+                            //new Thread(() => CallInspection1(AuxImage.Clone(), Auxnumber, (int)this.numberInspThreads, DiscId)).Start();
+                            DiscId.menber.InicioInspecao = DateTime.Now;
+
+                         Task Inspection1 = Task.Run(() =>
+                          {
+                              this.CallInspection1(AuxImage.Clone(), Auxnumber, (int)this.numberInspThreads, DiscId);
+                          });
+                        Measure1 = true;
+
+                        }
+                    }
+                    //Thread.Sleep(0);
+                    Start1 = DateTime.Now;
+                }
+                
+            }
+
+        }
+
+        private void CallInspection1(HObject ImagemInInspecao, int InspNumber, int TotalInspNumber, DiscCom DiscId)
+        {
+            DiscCom _DiscId = new DiscCom();
+            HObject AuxTest = new HObject();
             int _InspNumber = InspNumber;
+            int _ResultadoInspecao = new int();
             HObject ImagemActInspecao = new HObject();
             DateTime startTime = DateTime.Now, AuxDT;
+
+            _DiscId.writeClassValues(DiscId.menber);
             //lock (this.inspLock)
             try
             {
@@ -679,21 +740,21 @@ namespace _22079AI
 
                 this.ProcessaNovaOrdemInspecao();
 
-
                 //******* AQUISIÇÃO DA IMAGEM *******
                 this.AcquisicaoEmCurso = true;
 
-                lock (this.aqcLock)
-                { //copia a imagem atual para a imagem de inspecao
-                    HOperatorSet.CopyImage(ImagemInInspecao, out ImagemActInspecao);  //HOperatorSet.CopyImage(this.imagemAtual, out this.imagemInspecao);
-                    HOperatorSet.CopyImage(ImagemInInspecao, out this.imagemInspecao);
-                }
+                // lock (this.aqcLock)
+                // { //copia a imagem atual para a imagem de inspecao
+                HOperatorSet.CopyImage(ImagemInInspecao, out ImagemActInspecao);  //HOperatorSet.CopyImage(this.imagemAtual, out this.imagemInspecao);
+                HOperatorSet.CopyImage(ImagemInInspecao, out AuxTest);  //HOperatorSet.CopyImage(this.imagemAtual, out this.imagemInspecao);
+                HOperatorSet.CopyImage(ImagemInInspecao, out this.imagemInspecao);
+                // }
 
                 //limpa a janela
                 this.CamInsp.HWindow.ClearWindow();
 
                 //Mostra a imagem inspeção
-                this.CamInsp.DisplayImage(HalconFunctions.HobjectToHimage(ImagemActInspecao), 0, DateTime.MinValue);
+                this.CamInsp.DisplayImage(HalconFunctions.HobjectToHimage(ImagemActInspecao.Clone()), 0, DateTime.MinValue);
 
                 //enviar o captura ok
                 //Debug.WriteLine("*** Imagem Elapsed Time " + this.TipoInspecao + " " + this.TipoInspecao + ": " + Convert.ToInt32((DateTime.Now - this.TempoInicioInspecao).TotalMilliseconds) + " ms ***");
@@ -714,7 +775,7 @@ namespace _22079AI
                     //Se tiver ordem para gravar a imagem antes da inspeção
                     try
                     {
-                        if (this.saveImage && !this.guardarImagemFimInspecao)
+                        if (false)//if (this.saveImage && !this.guardarImagemFimInspecao)
                         {
                             //Cria o caminho geral do diretório das imagens
                             //string filename = this.TempoInicioInspecao.ToString("dd-MM-yyyy") + "_" + this.TempoInicioInspecao.ToString("HH-mm-ss") + "_" + this.TipoInspecao + ".bmp";
@@ -725,10 +786,10 @@ namespace _22079AI
                             this.imageFullPath = this.diretorioImagens + filename;
 
                             //Em thread, grava a imagem adquirida, de acordo com o metodo pretendido
-                            if (this.saveImgByHalcon)
-                                new Thread(() => this.GravaImagem1(ImagemActInspecao.Clone(), this.imageFullPath)).Start();
-                            else
-                                new Thread(() => this.GravaImagem2(ImagemActInspecao.Clone(), this.imageFullPath)).Start();
+                            //if (this.saveImgByHalcon)
+                            //    new Thread(() => this.GravaImagem1(ImagemActInspecao, this.imageFullPath)).Start();
+                            //else
+                            //    new Thread(() => this.GravaImagem2(ImagemActInspecao, this.imageFullPath)).Start();
                         }
                     }
                     catch (Exception ex)
@@ -744,7 +805,15 @@ namespace _22079AI
                     double comprimentoFaca = 0, amplitudeDesvioSuperior = 0, amplitudeDesvioInferior = 0, posMaxDesvioSuperior = 0, posMaxDesvioInferior = 0;
 
                     //Chamar o módulo de inspeção
-                    this.CallInspectionScript(ImagemActInspecao, this.ResultadoInspecao, Forms.MainForm.Receita.CompRegiaoInsp, this.InspecoesSimuladas, out facaDetetada, out comprimentoFaca, out amplitudeDesvioSuperior, out posMaxDesvioSuperior, out amplitudeDesvioInferior, out posMaxDesvioInferior, out erroInspecao, out msgInspecao);
+                    this.CallInspectionScript(ImagemActInspecao, out _ResultadoInspecao, out erroInspecao, out msgInspecao);
+                    this.ResultadoInspecao = _ResultadoInspecao;
+
+                    Debug.WriteLine("# InspNumber: " + _InspNumber);
+
+                    _DiscId.menber.FinalInspecao = DateTime.Now;
+                    _DiscId.menber.result = (short)_ResultadoInspecao;
+                    ListaDiscosInspecionados.Enqueue(_DiscId.menber);
+                    Debug.WriteLine("#terminou Nova Inspeção com ID: " + _DiscId.menber.ID + " #Numero Threads: " + NumeroThreads + " # Tempo PLC: " + (DateTime.Now - startTime).TotalMilliseconds);
 
                     //Processar os dados obtidos da visão
                     if (this.ResultadosForcados == 0)
@@ -753,7 +822,7 @@ namespace _22079AI
                         this.ResultadoInspecao = this.ResultadosForcados == 1 ? 1 : 3; //força OK / NOK consoante o valor 'ResultadosForcados'
 
                     //mostra o resultado na imagem da inspeção
-                    this.CamInsp.UpdateStatus(this.ErroInspecao ? LabelStatus.ErroInspecao : (LabelStatus)this.ResultadoInspecao);
+                    this.CamInsp.UpdateStatus(this.ErroInspecao ? LabelStatus.ErroInspecao : (LabelStatus)_ResultadoInspecao);
 
                     //Enviar os resultados no PLC - Processa o fim da inspeção
 
@@ -769,38 +838,56 @@ namespace _22079AI
                         //string filename = this.TempoInicioInspecao.ToString("dd-MM-yyyy") + "_" + this.TempoInicioInspecao.ToString("HH-mm-ss") + "_" + this.TipoInspecao + "_" + (this.ResultadoInspecao == 1 ? "OK" : "NOT_OK") + ".bmp";
 
                         //string filename = "ID" + idFaca.ToString() + "_" + Diversos.NumberToString(DB400.INSPECTION_RESULT.AMPLITUDE_DESVIO, 2, true) + "_" + Diversos.NumberToString(DB400.INSPECTION_RESULT.POS_MAX_DESVIO, 2, true) + "_" + this.TempoInicioInspecao.ToString("dd-MM-yyyy") + "_" + this.TempoInicioInspecao.ToString("HH-mm-ss") + "_" + (this.ResultadoInspecao == 1 ? "OK" : "NOT_OK") + ".bmp";
-                        string filename = "ID" + idFaca.ToString() + "_" + Diversos.NumberToString(comprimentoFaca, 2, true) + "_" + Diversos.NumberToString(amplitudeDesvioSuperior, 2, true) + "_" + Diversos.NumberToString(posMaxDesvioSuperior, 2, true) + "_" + this.TempoInicioInspecao.ToString("dd-MM-yyyy") + "_" + this.TempoInicioInspecao.ToString("HH-mm-ss");
+                        string filename = "ID_" + _DiscId.menber.ID.ToString() +"_Result_" + _ResultadoInspecao.ToString() + "_" + this.TempoInicioInspecao.ToString("dd-MM-yyyy") + "_" + this.TempoInicioInspecao.ToString("HH_mm_ss_ms");
 
                         //Juntas o diretório num só
                         this.imageFullPath = this.diretorioImagens + filename;
+                        filename = this.diretorioImagens + filename;
 
-                        //Em thread, grava a imagem adquirida, de acordo com o metodo pretendido
-                        if (this.saveImgByHalcon)
-                            new Thread(() => this.GravaImagem1(ImagemActInspecao.Clone(), this.imageFullPath)).Start();
-                        else
-                            new Thread(() => this.GravaImagem2(ImagemActInspecao.Clone(), this.imageFullPath)).Start();
+
+                      
+                            this.GravaImagem1(ImagemActInspecao.Clone(), filename);
+                      
+                        
+                        //this.GravaImagem1(ImagemActInspecao.Clone(), filename);
+                       // new Thread(() => this.GravaImagem1(ImagemActInspecao.Clone(), filename)).Start();
+
+                        ////Em thread, grava a imagem adquirida, de acordo com o metodo pretendido
+                        //if (this.saveImgByHalcon)
+                        //    new Thread(() => this.GravaImagem1(AuxTest, this.imageFullPath)).Start();
+                        //else
+                        //    new Thread(() => this.GravaImagem2(AuxTest, this.imageFullPath)).Start();
                     }
 
                     /*calcula numero atual de threads*/
-                    AuxDT = DateTime.Now;
-                    Debug.WriteLine("# InspNumber: " + _InspNumber);
-                    while ((_InspNumber - 1) != (this.numberAqThreads)) { }
-                    while ((Forms.MainForm.PlcControl.HmiPlcFeedbackdisc.menber.ID == Forms.MainForm.PlcControl.PlcHmiNewDisc.menber.ID)
-                           )
-                    {
-                    }
+                    //AuxDT = DateTime.Now;
 
-                    Debug.WriteLine("#terminou Nova Inspeção com ID: " + Forms.MainForm.PlcControl.PlcHmiNewDisc.menber.ID +" #Numero Threads: " + NumeroThreads + " # Tempo PLC: " + (DateTime.Now - AuxDT).TotalMilliseconds + " # CallInspection - Elapsed time: " + Convert.ToInt32((DateTime.Now - startTime).TotalMilliseconds) + " ms ***");
-                    this.ProcessaFimInspecaoPLC(Forms.MainForm.PlcControl.PlcHmiNewDisc.menber);
-                    Forms.MainForm.PlcControl.HmiPlcFeedbackdisc.writeClassValues(Forms.MainForm.PlcControl.PlcHmiNewDisc.menber);
-                    lock (this.ThreadLock)
-                    {
-                        while ((Forms.MainForm.PlcControl.HmiPlcFeedbackdisc.menber.ID != Forms.MainForm.PlcControl.PlcHmiNewDisc.menber.ID)
-                           )
-                        {
-                        }
-                        this.numberAqThreads = _InspNumber;
-                    }
+
+
+
+                    /* while ((_InspNumber - 1) != (this.numberAqThreads)) { }
+                     while ((Forms.MainForm.PlcControl.HmiPlcFeedbackdisc.menber.ID == Forms.MainForm.PlcControl.PlcHmiNewDisc.menber.ID)
+                            )
+                     {
+                     }
+
+                     Debug.WriteLine("#terminou Nova Inspeção com ID: " + Forms.MainForm.PlcControl.PlcHmiNewDisc.menber.ID + " #Numero Threads: " + NumeroThreads + " # Tempo PLC: " + (DateTime.Now - AuxDT).TotalMilliseconds + " # CallInspection - Elapsed time: " + Convert.ToInt32((DateTime.Now - startTime).TotalMilliseconds) + " ms ***");
+
+                     //this.ProcessaFimInspecaoPLC(AuxMenber, _ResultadoInspecao);
+                     lock (this.ThreadLock)
+                     {
+                         while (!Forms.MainForm.PlcControl.PlcReadyForNewDIsc)
+                         { }
+                         Forms.MainForm.PlcControl.HmiPlcNewDisc.writeClassValues(AuxMenber);
+
+
+                         Debug.WriteLine("### EnviaResultadosPLC - Enviou Resultado com ID: " + Forms.MainForm.PlcControl.HmiPlcNewDisc.menber.ID + " # Tempo PLC: " + (DateTime.Now - AuxDT).TotalMilliseconds);
+
+                         while ((Forms.MainForm.PlcControl.HmiPlcFeedbackdisc.menber.ID != Forms.MainForm.PlcControl.PlcHmiNewDisc.menber.ID))
+                         {
+                         }
+                         this.numberAqThreads = _InspNumber;
+                     }*/
                     #endregion
                     NumeroThreads--;
                 }
@@ -892,24 +979,6 @@ namespace _22079AI
             //Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Int, valor, this.DbNumber, 6);
         }
 
-        private void ProcessaFimInspecaoPLC(DiscMenbers Disc)
-        {
-            //Enviar o resultado de inspeção
-            Disc.result = (short)this.ResultadoInspecao;
-
-            lock (lockLista)
-            {
-                ListaDiscosInspecionados.Add(Disc);
-            }
-
-
-
-            this.TempoInspecao = Convert.ToInt32((DateTime.Now - this.TempoInicioInspecao).TotalMilliseconds) - this.TempoAquisicao;
-
-            if (this.inspecaoOK)
-                Debug.WriteLine("*** Resultado + Sinal de Inspeção OK " + this.TipoInspecao + " enviado **");
-        }
-
         private bool ProcessaNovaOrdemInspecao()
         {
             this.TempoInicioInspecao = DateTime.Now;
@@ -931,13 +1000,14 @@ namespace _22079AI
             return true;
         }
 
-        private void CallInspectionScript(HObject img, double resultadoInsp, int compRegiaoInsp, bool modoSimulacao, out bool facaDetetada, out double valorComprimentoFaca, out double valorAmplitudeDesvioSuperior, out double valorPosMaxDesvioSuperior, out double valorAmplitudeDesvioInferior, out double valorPosMaxDesvioInferior, out bool erroInspecao, out string msgErro)
+        private void CallInspectionScript(HObject img, out int resultadoInsp, out bool erroInspecao, out string msgErro)
         {
             DateTime startTime = DateTime.Now;
+            bool modoSimulacao = false;
 
             //instancia variaveis com default values
-            valorComprimentoFaca = valorAmplitudeDesvioSuperior = valorAmplitudeDesvioInferior = valorPosMaxDesvioSuperior = valorPosMaxDesvioInferior = 0;
-            facaDetetada = erroInspecao = false;
+            resultadoInsp = 0;
+            erroInspecao = false;
             msgErro = string.Empty;
 
             try
@@ -959,21 +1029,15 @@ namespace _22079AI
 
                     //Obtem as outputs do script
                     outputImage = this.inspScript.GetOutputIconicParamObject("OutputImage");
-                    resultadoInsp = 1;//this.inspScript.GetOutputCtrlParamTuple("Resultado").D;
-                    erroInspecao = false;// this.inspScript.GetOutputCtrlParamTuple("Erro") == 1;
+                    resultadoInsp = this.inspScript.GetOutputCtrlParamTuple("Resultado").I;
+                    erroInspecao = this.inspScript.GetOutputCtrlParamTuple("Erro") == 1;
 
-                    //msgErro = this.inspScript.GetOutputCtrlParamTuple("MsgErro")[0];
+                    //if (this.inspScript.GetOutputCtrlParamTuple("MsgErro").Length>1)
+                    // msgErro = "Nao foi enviada informacao do script";
+                    // else
+                    //msgErro = this.inspScript.GetOutputCtrlParamTuple("MsgErro");
 
-                    msgErro = "";//o emanuel nao colocou menssagens em todos os caos :) RC
-
-                    //facaDetetada = this.inspScript.GetOutputCtrlParamTuple("FacaDetetada") == 1;
-                    //valorComprimentoFaca = this.inspScript.GetOutputCtrlParamTuple("ComprimentoLamina").D;
-                    //valorAmplitudeDesvioSuperior = this.inspScript.GetOutputCtrlParamTuple("DesvioCurvaturaSuperior").D;
-                    //valorPosMaxDesvioSuperior = this.inspScript.GetOutputCtrlParamTuple("PosDesvioSuperior").D;
-                    //valorAmplitudeDesvioInferior = this.inspScript.GetOutputCtrlParamTuple("DesvioCurvaturaInferior").D;
-                    //valorPosMaxDesvioInferior = this.inspScript.GetOutputCtrlParamTuple("PosDesvioInferior").D;
-
-
+                    //msgErro = "";//o emanuel nao colocou menssagens em todos os caos :) 
 
                     //Se não tiver erro de inspeção, adiciona a imagem tratada do halcon e adiciona as regiões
                     if (true)
@@ -988,17 +1052,17 @@ namespace _22079AI
                         this.CamInsp.DisplayImage(this.UltimaImagemInspecao.hImage, this.TempoInicioInspecao);
 
                         #region Mostra as Regiões na Imagem
-                        if (false)//this.UltimaImagemInspecao.ValidRegions())
-                        {
-                            //mostra contornos
-                            this.DisplayInsp.SetLineWidth(2.5);
+                        //if (false)//this.UltimaImagemInspecao.ValidRegions())
+                        //{
+                        //    //mostra contornos
+                        //    this.DisplayInsp.SetLineWidth(2.5);
 
-                            for (int i = 0; i < this.UltimaImagemInspecao.regions.CountObj(); i++)
-                            {
-                                this.DisplayInsp.SetColor((string)this.UltimaImagemInspecao.colors[i]);
-                                this.DisplayInsp.DispObj(this.UltimaImagemInspecao.regions.SelectObj(i + 1));
-                            }
-                        }
+                        //    for (int i = 0; i < this.UltimaImagemInspecao.regions.CountObj(); i++)
+                        //    {
+                        //        this.DisplayInsp.SetColor((string)this.UltimaImagemInspecao.colors[i]);
+                        //        this.DisplayInsp.DispObj(this.UltimaImagemInspecao.regions.SelectObj(i + 1));
+                        //    }
+                        //}
                         #endregion
                     }
                     else
@@ -1091,9 +1155,9 @@ namespace _22079AI
 
                     sfd.DefaultExt = ".bmp"; // Default file extension 
 
-                    if (sfd.ShowDialog() == DialogResult.OK)
-                        lock (this.aqcLock)
-                            this.GravaImagem1(this.imagemAtual.Clone(), sfd.FileName);
+                    if (sfd.ShowDialog() == DialogResult.OK) { }
+                    // lock (this.aqcLock)
+                    // this.GravaImagem1(this.imagemAtual.Clone(), sfd.FileName);
                 }
 
                 return true;
@@ -1106,17 +1170,23 @@ namespace _22079AI
 
         }
 
+        HObject LastImageSaved = new HObject();
+
         private bool GravaImagem1(HObject hOImage, string imageFullPath)
         {
+            HObject _hOImage = new HObject();
             this.GravacaoEmCurso = true;
 
             DateTime dataInicial = DateTime.Now;
 
             try
             {
+                //HOperatorSet.CopyImage(hOImage, out _hOImage);
+                // if (ListaImagensPorGravar.TryDequeue(out _hOImage))
                 HOperatorSet.WriteImage(hOImage, "bmp", 0, imageFullPath);
 
                 //Debug.WriteLine("GravaImagem1(" + this.TipoInspecao + "): Image saved sucessufully on " + imageFullPath + " ** Elapsed Time: " + Convert.ToInt32((DateTime.Now - dataInicial).TotalMilliseconds) + " ms");
+                Debug.WriteLine("GravaImagem1(" + "): Image saved sucessufully on " + imageFullPath + " ** Elapsed Time: " + Convert.ToInt32((DateTime.Now - dataInicial).TotalMilliseconds) + " ms");
                 return true;
             }
             catch (Exception e)
@@ -1126,7 +1196,7 @@ namespace _22079AI
             }
             finally
             {
-                if (hOImage != null) hOImage.Dispose();
+                // if (hOImage != null) hOImage.Dispose();
 
                 //Faz o fifo de imagens
                 this.FazFifo();

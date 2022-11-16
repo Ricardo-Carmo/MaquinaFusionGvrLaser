@@ -555,7 +555,7 @@ namespace PLC
         #region Funções de Escrita
         private int MakeWrite(MemoryArea area, int dbNumber, int offset, byte[] buffer)
         {
-            lock (clientLock)
+            //lock (clientLock)
                 switch (area)
                 {
                     case MemoryArea.DB: return Client.DBWrite(dbNumber, offset, buffer.Length, buffer);

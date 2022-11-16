@@ -114,7 +114,7 @@ namespace _22079AI
         {
             if (hImage != null)
             {
-                //   this.WindowControl.HalconWindow.ClearWindow();
+                this.WindowControl.HalconWindow.ClearWindow();
 
                 //this.WindowControl.HalconWindow.DispImage(hImage);
 
