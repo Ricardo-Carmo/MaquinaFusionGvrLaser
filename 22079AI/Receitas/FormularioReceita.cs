@@ -60,42 +60,39 @@ namespace _22079AI
 
         }
 
+        //vai enviar a receita para a classe receitas - a alterar
         public void PreencheDados(int _id)
         {
+            Receitas.ParamReceita ReceitaAtualizada = new Receitas.ParamReceita();
             try
             {
-                using (SqlConnection sqlConn = new SqlConnection(this.strConexaoDb))
-                using (SqlCommand sqlCmd = new SqlCommand("SELECT * FROM RECEITA WHERE ID = @ID", sqlConn))
-                {
-                    sqlCmd.Parameters.Add("@ID", SqlDbType.SmallInt).Value = _id;
+                Forms.MainForm.Receita.LeReceitaDb(ref ReceitaAtualizada, (short)_id);
 
-                    sqlConn.Open();
 
-                    using (SqlDataReader dr = sqlCmd.ExecuteReader())
-                        if (dr.Read())
-                        {
-                            txtNumReferencia.Text = Convert.ToString(dr[1]);
-                            txtDescricao.Text = Convert.ToString(dr[2]);
-                            txtDistanciaCamFaca.Value = Convert.ToInt32(dr[3]);
-                            txtComprimentoNominal.Value = (decimal)Convert.ToDouble(dr[4]);
-                            txtToleranciaComprimento.Value = (decimal)Convert.ToDouble(dr[5]);
-                            txtDesvioNominal.Value = (decimal)Convert.ToDouble(dr[6]);
-                            txtToleranciaDesvio.Value = (decimal)Convert.ToDouble(dr[7]);
-                            txtToleranciaDesvioInf.Value = (decimal)Convert.ToDouble(dr[8]);
+                txtNome.Text = ReceitaAtualizada.NOME  ;
+                 txtDescricao.Text = ReceitaAtualizada.DESCRICAO;
 
-                            txtRepresentacaoFaca.Text = Convert.ToString(dr[9]);
+                txtComprimentoLeve.Value = (decimal)ReceitaAtualizada.ENCASCADO_LEVE.COMPRIMENTO ;
+                 txtEspessuraLeve.Value = (decimal)ReceitaAtualizada.ENCASCADO_LEVE.ESPESSURA;
+                  txtTonalidadeMinLeve.Value = (decimal)ReceitaAtualizada.ENCASCADO_LEVE.TONALIDADE_MIN;
+                  txtTonalidadeMaxLeve.Value = (decimal)ReceitaAtualizada.ENCASCADO_LEVE.TONALIDADE_MAX;
 
-                            txtSpOK.Value = Convert.ToInt32(dr[10]);
-                            txtSpNOK.Value = Convert.ToInt32(dr[11]);
+                  txtComprimentoModerado.Value = (decimal)ReceitaAtualizada.ENCASCADO_MODERADO.COMPRIMENTO;
+                  txtEspessuraModerado.Value = (decimal)ReceitaAtualizada.ENCASCADO_MODERADO.ESPESSURA;
+                  txtTonalidadeMinModerado.Value = (decimal)ReceitaAtualizada.ENCASCADO_MODERADO.TONALIDADE_MIN;
+                  txtTonalidadeMaxModerado.Value = (decimal)ReceitaAtualizada.ENCASCADO_MODERADO.TONALIDADE_MAX;
 
-                            
-                        }
-                        else
-                            throw new Exception("Sem dados lidos para o ID: " + _id);
+                  txtComprimentoVincado.Value = (decimal)ReceitaAtualizada.ENCASCADO_VINCADO.COMPRIMENTO;
+                  txtEspessuraVincado.Value = (decimal)ReceitaAtualizada.ENCASCADO_VINCADO.ESPESSURA;
+                  txtTonalidadeMinVincado.Value = (decimal)ReceitaAtualizada.ENCASCADO_VINCADO.TONALIDADE_MIN;
+                  txtTonalidadeMaxVincado.Value = (decimal)ReceitaAtualizada.ENCASCADO_VINCADO.TONALIDADE_MAX;
+
+            
+                       
                 }
-                SpSequenciaReprovados.Value = DB400.SEQUENCE_REPROVED;
 
-            }
+                
+            
             catch (Exception ex)
             {
                 new CaixaMensagem(ex.Message, "Carregar Dados", CaixaMensagem.TipoMsgBox.Error, FormStartPosition.CenterScreen).ShowDialog();
@@ -160,12 +157,13 @@ namespace _22079AI
                 dialog.DefaultExt = ".png"; // Default file extension 
 
                 if (dialog.ShowDialog() == DialogResult.OK)
-                    txtRepresentacaoFaca.Text = dialog.FileName;
+                    ;
+                   // txtRepresentacaoFaca.Text = dialog.FileName;
             }
 
         }
 
-        private void txtRepresentacaoFaca_TextChanged(object sender, EventArgs e)
+      /*  private void txtRepresentacaoFaca_TextChanged(object sender, EventArgs e)
         {
             //Verificar se o ficheiro é válido
             if (File.Exists(txtRepresentacaoFaca.Text))
@@ -178,14 +176,14 @@ namespace _22079AI
                     MessageBox.Show(ex.Message, "Mostrar Imagem", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     pctRepresentacao.Image = Resources.imagem_nao_disponivel;
                 }
-        }
-
+        }*/
+/*
         private void pctRepresentacao_Click(object sender, EventArgs e)
         {
             if (pctRepresentacao.Image != null)
                 new MostraImagem((Image)pctRepresentacao.Image.Clone()).Show();
         }
-
+*/
         private void FormularioReceita_Load(object sender, EventArgs e)
         {
             switch (tipoAcesso)
@@ -208,6 +206,7 @@ namespace _22079AI
             this.HabilitaControlos(tipoAcesso != TipoAcesso.Ver);
         }
 
+        //Botao gravar receita
         private void btnSim_Click(object sender, EventArgs e)
         {
             if (tipoAcesso == TipoAcesso.Ver)
@@ -217,39 +216,28 @@ namespace _22079AI
                 try
                 {
                     string strQuery = string.Empty;
+                    Receitas.ParamReceita ReceitaAtualizada = new Receitas.ParamReceita();
                     int numOfRows = 0;
 
-                    if (tipoAcesso == TipoAcesso.Adicionar)
-                        strQuery = "INSERT INTO RECEITA ([NOME], [DESCRICAO], [DISTANCIA_FACA_CAM], [COMPRIMENTO_NOMINAL], [TOLERANCIA_COMPRIMENTO], [DESVIO_NOMINAL], [TOLERANCIA_DESVIO_SUPERIOR],[TOLERANCIA_DESVIO_INFERIOR], [ENDERECO_IMAGEM_1], [SP_OK], [SP_NOT_OK], [ULTIMA_MODIFICACAO]) VALUES (@NOME, @DESCRICAO, @DISTANCIA_FACA_CAM, @COMPRIMENTO_NOMINAL, @TOLERANCIA_COMPRIMENTO, @DESVIO_NOMINAL, @TOLERANCIA_DESVIO_SUPERIOR, @TOLERANCIA_DESVIO_INFERIOR, @ENDERECO_IMAGEM_1, @SP_OK, @SP_NOT_OK, GETDATE())";
-                    else if (tipoAcesso == TipoAcesso.Editar)
-                        strQuery = "UPDATE RECEITA SET [NOME] = @NOME, [DESCRICAO] = @DESCRICAO, [DISTANCIA_FACA_CAM] = @DISTANCIA_FACA_CAM, [COMPRIMENTO_NOMINAL] = @COMPRIMENTO_NOMINAL, [TOLERANCIA_COMPRIMENTO] = @TOLERANCIA_COMPRIMENTO, [DESVIO_NOMINAL] = @DESVIO_NOMINAL, [TOLERANCIA_DESVIO_SUPERIOR] = @TOLERANCIA_DESVIO_SUPERIOR, [TOLERANCIA_DESVIO_INFERIOR] = @TOLERANCIA_DESVIO_INFERIOR, [ENDERECO_IMAGEM_1] = @ENDERECO_IMAGEM_1, SP_OK = @SP_OK, SP_NOT_OK = @SP_NOT_OK, [ULTIMA_MODIFICACAO] = GETDATE() WHERE ID = @ID";
+                    ReceitaAtualizada.NOME = txtNome.Text;
+                    ReceitaAtualizada.DESCRICAO=txtDescricao.Text;
 
-                    if (!string.IsNullOrEmpty(strQuery))
-                        using (SqlConnection sqlConn = new SqlConnection(this.strConexaoDb))
-                        using (SqlCommand sqlCmd = new SqlCommand(strQuery, sqlConn))
-                        {
-                            sqlCmd.Parameters.Add("@NOME", SqlDbType.NVarChar).Value = txtNumReferencia.Text;
-                            sqlCmd.Parameters.Add("@DESCRICAO", SqlDbType.NVarChar).Value = txtDescricao.Text;
-                            sqlCmd.Parameters.Add("@DISTANCIA_FACA_CAM", SqlDbType.Real).Value = Convert.ToInt32(txtDistanciaCamFaca.Value);
-                            sqlCmd.Parameters.Add("@COMPRIMENTO_NOMINAL", SqlDbType.Real).Value = Convert.ToDouble(txtComprimentoNominal.Value);
-                            sqlCmd.Parameters.Add("@TOLERANCIA_COMPRIMENTO", SqlDbType.Real).Value = Convert.ToDouble(txtToleranciaComprimento.Value);
-                            sqlCmd.Parameters.Add("@DESVIO_NOMINAL", SqlDbType.Real).Value = Convert.ToDouble(txtDesvioNominal.Value);
-                            sqlCmd.Parameters.Add("@TOLERANCIA_DESVIO_SUPERIOR", SqlDbType.Real).Value = Convert.ToDouble(txtToleranciaDesvio.Value);
-                            sqlCmd.Parameters.Add("@TOLERANCIA_DESVIO_INFERIOR", SqlDbType.Real).Value = Convert.ToDouble(txtToleranciaDesvioInf.Value);
+                    ReceitaAtualizada.ENCASCADO_LEVE.COMPRIMENTO = (float)txtComprimentoLeve.Value;
+                    ReceitaAtualizada.ENCASCADO_LEVE.ESPESSURA = (float)txtEspessuraLeve.Value;
+                    ReceitaAtualizada.ENCASCADO_LEVE.TONALIDADE_MIN = (float)txtTonalidadeMinLeve.Value;
+                    ReceitaAtualizada.ENCASCADO_LEVE.TONALIDADE_MAX = (float)txtTonalidadeMaxLeve.Value;
 
-                            sqlCmd.Parameters.Add("@ENDERECO_IMAGEM_1", SqlDbType.NVarChar).Value = txtRepresentacaoFaca.Text;
+                    ReceitaAtualizada.ENCASCADO_MODERADO.COMPRIMENTO = (float)txtComprimentoModerado.Value;
+                    ReceitaAtualizada.ENCASCADO_MODERADO.ESPESSURA = (float)txtEspessuraModerado.Value;
+                    ReceitaAtualizada.ENCASCADO_MODERADO.TONALIDADE_MIN = (float)txtTonalidadeMinModerado.Value;
+                    ReceitaAtualizada.ENCASCADO_MODERADO.TONALIDADE_MAX = (float)txtTonalidadeMaxModerado.Value;
 
-                            sqlCmd.Parameters.Add("@SP_OK", SqlDbType.Int).Value = Convert.ToInt32(txtSpOK.Value);
-                            sqlCmd.Parameters.Add("@SP_NOT_OK", SqlDbType.Int).Value = Convert.ToInt32(txtSpNOK.Value);
+                    ReceitaAtualizada.ENCASCADO_VINCADO.COMPRIMENTO = (float)txtComprimentoVincado.Value;
+                    ReceitaAtualizada.ENCASCADO_VINCADO.ESPESSURA = (float)txtEspessuraVincado.Value;
+                    ReceitaAtualizada.ENCASCADO_VINCADO.TONALIDADE_MIN = (float)txtTonalidadeMinVincado.Value;
+                    ReceitaAtualizada.ENCASCADO_VINCADO.TONALIDADE_MAX = (float)txtTonalidadeMaxVincado.Value;
 
-                            if (tipoAcesso == TipoAcesso.Editar)
-                                sqlCmd.Parameters.Add("@ID", SqlDbType.SmallInt).Value = idRegisto;
-
-                            sqlConn.Open();
-
-                            numOfRows = Convert.ToInt32(sqlCmd.ExecuteNonQuery());
-
-                        }
+                    numOfRows = Forms.MainForm.Receita.EscreveReceitaDb(ref ReceitaAtualizada, tipoAcesso, (short)idRegisto);
 
                     //Forms.MainForm.PLC1.EnviaTagRT(PLC.Siemens.MemoryArea.DB, PLC.Siemens.TipoVariavel.DInt, SpSequenciaReprovados.Value, 23, 72);
 
@@ -263,9 +251,9 @@ namespace _22079AI
                         else if (tipoAcesso == TipoAcesso.Editar)
                         {
                             //Alteração para actualizar receita quando se edita a receita que esta a ser usada actualmente - EJ
-                            if (idRegisto == Forms.MainForm.Receita.ID)
+                            if (idRegisto == Forms.MainForm.Receita._ReceitaCarregada.ID)
                             {
-                                Forms.MainForm.Receita.AtualizaReceita(Convert.ToInt32(idRegisto), Forms.MainForm.UserSession.IDOperador, string.Empty, DateTime.Now, true);
+                                Forms.MainForm.Receita.AtualizaReceita(Convert.ToInt32(idRegisto), Forms.MainForm.UserSession.IDOperador, DateTime.Now, true);
                                 Forms.MainForm.AtualizaInformacoesReceita();
                             }
 
@@ -301,35 +289,78 @@ namespace _22079AI
 
         private bool VerificaPreenchimento()
         {
-            if (string.IsNullOrWhiteSpace(txtNumReferencia.Text))
+            if (string.IsNullOrWhiteSpace(txtNome.Text))
             {
-                new CaixaMensagem("Verificar o campo 'Referência'!", "Verificações", CaixaMensagem.TipoMsgBox.Warning, FormStartPosition.CenterScreen).ShowDialog();
+                new CaixaMensagem("Verificar o campo 'Nome'!", "Verificações", CaixaMensagem.TipoMsgBox.Warning, FormStartPosition.CenterScreen).ShowDialog();
                 return false;
             }
 
-            if (txtDistanciaCamFaca.Value <= 0)
+            #region TabelaLeve
+            if (txtEspessuraLeve.Value <= 0)
             {
-                if (new CaixaMensagem("A região de inspeção esta defenida para 0 pixeis. Deseja confirmar?", "Verificações", CaixaMensagem.TipoMsgBox.Question, FormStartPosition.CenterScreen).ShowDialog() != DialogResult.Yes)
+                if (new CaixaMensagem("A Espessura Leve de inspeção esta defenida para 0 mm. Deseja confirmar?", "Verificações", CaixaMensagem.TipoMsgBox.Question, FormStartPosition.CenterScreen).ShowDialog() != DialogResult.Yes)
                     return false;
             }
-
-            if (txtComprimentoNominal.Value <= 0)
+            if (txtComprimentoLeve.Value <= 0)
             {
-                new CaixaMensagem("O comprimento da faca não pode ser 0 milímetros!", "Verificações", CaixaMensagem.TipoMsgBox.Warning, FormStartPosition.CenterScreen).ShowDialog();
-                return false;
+                if (new CaixaMensagem("O Comprimento Leve de inspeção esta defenida para 0 mm. Deseja confirmar?", "Verificações", CaixaMensagem.TipoMsgBox.Question, FormStartPosition.CenterScreen).ShowDialog() != DialogResult.Yes)
+                    return false;
             }
-
-            if (txtSpOK.Value <= 0)
+            if (txtTonalidadeMaxLeve.Value <= 0)
             {
-                new CaixaMensagem("O SP de facas na box aprovados não pode ser 0!", "Verificações", CaixaMensagem.TipoMsgBox.Warning, FormStartPosition.CenterScreen).ShowDialog();
-                return false;
+                if (new CaixaMensagem("A Tonalidade Maxima Leve de inspeção esta defenida para 0 . Deseja confirmar?", "Verificações", CaixaMensagem.TipoMsgBox.Question, FormStartPosition.CenterScreen).ShowDialog() != DialogResult.Yes)
+                    return false;
             }
-
-            if (txtSpNOK.Value <= 0)
+            if (txtTonalidadeMinLeve.Value <= 0)
             {
-                new CaixaMensagem("O SP de facas na box reprovados não pode ser 0!", "Verificações", CaixaMensagem.TipoMsgBox.Warning, FormStartPosition.CenterScreen).ShowDialog();
-                return false;
+                if (new CaixaMensagem("A Tonalidade Minima Leve de inspeção esta defenida para 0 . Deseja confirmar?", "Verificações", CaixaMensagem.TipoMsgBox.Question, FormStartPosition.CenterScreen).ShowDialog() != DialogResult.Yes)
+                    return false;
             }
+            #endregion
+            #region TabelaModerada
+            if (txtEspessuraModerado.Value <= 0)
+            {
+                if (new CaixaMensagem("A Espessura Moderada de inspeção esta defenida para 0 mm. Deseja confirmar?", "Verificações", CaixaMensagem.TipoMsgBox.Question, FormStartPosition.CenterScreen).ShowDialog() != DialogResult.Yes)
+                    return false;
+            }
+            if (txtComprimentoModerado.Value <= 0)
+            {
+                if (new CaixaMensagem("O Comprimento Moderado de inspeção esta defenida para 0 mm. Deseja confirmar?", "Verificações", CaixaMensagem.TipoMsgBox.Question, FormStartPosition.CenterScreen).ShowDialog() != DialogResult.Yes)
+                    return false;
+            }
+            if (txtTonalidadeMaxModerado.Value <= 0)
+            {
+                if (new CaixaMensagem("A Tonalidade Maxima Moderada de inspeção esta defenida para 0 . Deseja confirmar?", "Verificações", CaixaMensagem.TipoMsgBox.Question, FormStartPosition.CenterScreen).ShowDialog() != DialogResult.Yes)
+                    return false;
+            }
+            if (txtTonalidadeMinModerado.Value <= 0)
+            {
+                if (new CaixaMensagem("A Tonalidade Minima Moderada de inspeção esta defenida para 0 . Deseja confirmar?", "Verificações", CaixaMensagem.TipoMsgBox.Question, FormStartPosition.CenterScreen).ShowDialog() != DialogResult.Yes)
+                    return false;
+            }
+            #endregion
+            #region TabelaVincada
+            if (txtEspessuraVincado.Value <= 0)
+            {
+                if (new CaixaMensagem("A Espessura Vincada de inspeção esta defenida para 0 mm. Deseja confirmar?", "Verificações", CaixaMensagem.TipoMsgBox.Question, FormStartPosition.CenterScreen).ShowDialog() != DialogResult.Yes)
+                    return false;
+            }
+            if (txtComprimentoVincado.Value <= 0)
+            {
+                if (new CaixaMensagem("O Comprimento Vincado de inspeção esta defenida para 0 mm. Deseja confirmar?", "Verificações", CaixaMensagem.TipoMsgBox.Question, FormStartPosition.CenterScreen).ShowDialog() != DialogResult.Yes)
+                    return false;
+            }
+            if (txtTonalidadeMaxVincado.Value <= 0)
+            {
+                if (new CaixaMensagem("A Tonalidade Maxima Vincada de inspeção esta defenida para 0 . Deseja confirmar?", "Verificações", CaixaMensagem.TipoMsgBox.Question, FormStartPosition.CenterScreen).ShowDialog() != DialogResult.Yes)
+                    return false;
+            }
+            if (txtTonalidadeMinVincado.Value <= 0)
+            {
+                if (new CaixaMensagem("A Tonalidade Minima Vincada de inspeção esta defenida para 0 . Deseja confirmar?", "Verificações", CaixaMensagem.TipoMsgBox.Question, FormStartPosition.CenterScreen).ShowDialog() != DialogResult.Yes)
+                    return false;
+            }
+            #endregion
 
             return true;
         }
@@ -357,32 +388,29 @@ namespace _22079AI
                     try
                     {
                         string strQuery = string.Empty;
+                        Receitas.ParamReceita ReceitaAtualizada = new Receitas.ParamReceita();
                         int numOfRows = 0;
 
-                        strQuery = "INSERT INTO RECEITA ([NOME], [DESCRICAO], [DISTANCIA_FACA_CAM], [COMPRIMENTO_NOMINAL], [TOLERANCIA_COMPRIMENTO], [DESVIO_NOMINAL], [TOLERANCIA_DESVIO_SUPERIOR], [TOLERANCIA_DESVIO_INFERIOR], [ENDERECO_IMAGEM_1], [SP_OK], [SP_NOT_OK], [ULTIMA_MODIFICACAO]) VALUES (@NOME, @DESCRICAO, @DISTANCIA_FACA_CAM, @COMPRIMENTO_NOMINAL, @TOLERANCIA_COMPRIMENTO, @DESVIO_NOMINAL, @TOLERANCIA_DESVIO_SUPERIOR, @TOLERANCIA_DESVIO_INFERIOR, @ENDERECO_IMAGEM_1, @SP_OK, @SP_NOT_OK, GETDATE())";
+                        ReceitaAtualizada.NOME = txtNome.Text;
+                        ReceitaAtualizada.DESCRICAO = txtDescricao.Text;
 
-                        if (!string.IsNullOrEmpty(strQuery))
-                            using (SqlConnection sqlConn = new SqlConnection(this.strConexaoDb))
-                            using (SqlCommand sqlCmd = new SqlCommand(strQuery, sqlConn))
-                            {
-                                sqlCmd.Parameters.Add("@NOME", SqlDbType.NVarChar).Value = txtNumReferencia.Text;
-                                sqlCmd.Parameters.Add("@DESCRICAO", SqlDbType.NVarChar).Value = txtDescricao.Text;
-                                sqlCmd.Parameters.Add("@DISTANCIA_FACA_CAM", SqlDbType.Real).Value = Convert.ToInt32(txtDistanciaCamFaca.Value);
-                                sqlCmd.Parameters.Add("@COMPRIMENTO_NOMINAL", SqlDbType.Real).Value = Convert.ToDouble(txtComprimentoNominal.Value);
-                                sqlCmd.Parameters.Add("@TOLERANCIA_COMPRIMENTO", SqlDbType.Real).Value = Convert.ToDouble(txtToleranciaComprimento.Value);
-                                sqlCmd.Parameters.Add("@DESVIO_NOMINAL", SqlDbType.Real).Value = Convert.ToDouble(txtDesvioNominal.Value);
-                                sqlCmd.Parameters.Add("@TOLERANCIA_DESVIO_SUPERIOR", SqlDbType.Real).Value = Convert.ToDouble(txtToleranciaDesvio.Value);
-                                sqlCmd.Parameters.Add("@TOLERANCIA_DESVIO_INFERIOR", SqlDbType.Real).Value = Convert.ToDouble(txtToleranciaDesvioInf.Value);
+                        ReceitaAtualizada.ENCASCADO_LEVE.COMPRIMENTO = (Int32)txtComprimentoLeve.Value;
+                        ReceitaAtualizada.ENCASCADO_LEVE.ESPESSURA = (Int32)txtEspessuraLeve.Value;
+                        ReceitaAtualizada.ENCASCADO_LEVE.TONALIDADE_MIN = (Int32)txtTonalidadeMinLeve.Value;
+                        ReceitaAtualizada.ENCASCADO_LEVE.TONALIDADE_MAX = (Int32)txtTonalidadeMaxLeve.Value;
 
-                                sqlCmd.Parameters.Add("@ENDERECO_IMAGEM_1", SqlDbType.NVarChar).Value = txtRepresentacaoFaca.Text;
+                        ReceitaAtualizada.ENCASCADO_MODERADO.COMPRIMENTO = (Int32)txtComprimentoModerado.Value;
+                        ReceitaAtualizada.ENCASCADO_MODERADO.ESPESSURA = (Int32)txtEspessuraModerado.Value;
+                        ReceitaAtualizada.ENCASCADO_MODERADO.TONALIDADE_MIN = (Int32)txtTonalidadeMinModerado.Value;
+                        ReceitaAtualizada.ENCASCADO_MODERADO.TONALIDADE_MAX = (Int32)txtTonalidadeMaxModerado.Value;
 
-                                sqlCmd.Parameters.Add("@SP_OK", SqlDbType.Int).Value = Convert.ToInt32(txtSpOK.Value);
-                                sqlCmd.Parameters.Add("@SP_NOT_OK", SqlDbType.Int).Value = Convert.ToInt32(txtSpNOK.Value);
+                        ReceitaAtualizada.ENCASCADO_VINCADO.COMPRIMENTO = (Int32)txtComprimentoVincado.Value;
+                        ReceitaAtualizada.ENCASCADO_VINCADO.ESPESSURA = (Int32)txtEspessuraVincado.Value;
+                        ReceitaAtualizada.ENCASCADO_VINCADO.TONALIDADE_MIN = (Int32)txtTonalidadeMinVincado.Value;
+                        ReceitaAtualizada.ENCASCADO_VINCADO.TONALIDADE_MAX = (Int32)txtTonalidadeMaxVincado.Value;
 
-                                sqlConn.Open();
-
-                                numOfRows = Convert.ToInt32(sqlCmd.ExecuteNonQuery());
-                            }
+                        numOfRows = Forms.MainForm.Receita.EscreveReceitaDb(ref ReceitaAtualizada, tipoAcesso, (short)idRegisto);
+                    
 
                         if (numOfRows == 1)
                         {
@@ -399,10 +427,10 @@ namespace _22079AI
                     }
 
         }
-
+/*
         private void TxtDistanciaCamFaca_ValueChanged(object sender, EventArgs e)
         {
             compRegiao=Convert.ToInt32(txtDistanciaCamFaca.Value);
-        }
+        }*/
     }
 }

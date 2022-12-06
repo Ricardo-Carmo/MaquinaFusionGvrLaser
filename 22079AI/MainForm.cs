@@ -16,6 +16,7 @@ using _22079AI.Properties;
 using System.Security.Permissions;
 using PLC;
 using static PLC.Siemens;
+using System.Runtime.InteropServices;
 
 namespace _22079AI
 {
@@ -59,6 +60,7 @@ namespace _22079AI
 
         private void MainForm_Load(object sender, EventArgs e)
         {
+            
             try
             {
                 //Iniciar comunicação com o PLC
@@ -96,7 +98,7 @@ namespace _22079AI
                 new Thread(PlcControl.WriteReadPlc) { Priority = ThreadPriority.Highest }.Start();
 
                 //Instância Receitas
-                this.Receita = new Receitas(this.VariaveisAuxiliares.DatabaseConnectionString, this.VariaveisAuxiliares.RobotAddress);
+                this.Receita = new Receitas(this.VariaveisAuxiliares.DatabaseConnectionString);
 
                 //Instância camera
                 this.Inspection = new InspLateralDiscos(this.VariaveisAuxiliares.InspectionConfigPath);
@@ -107,7 +109,7 @@ namespace _22079AI
                 this.AtualizaInformacoesReceita();
 
                 //TODO descomentar para encra de manual
-                DB400.MANUAL_AUTO = true;
+                //DB400.MANUAL_AUTO = true;
             }
             catch (Exception ex)
             {
@@ -793,7 +795,7 @@ namespace _22079AI
 
         public void InsertIntoDGV(Inspection insp)
         {
-            int spMaxdgv = 12;
+            int spMaxdgv = 22;
 
             try
             {
@@ -802,15 +804,16 @@ namespace _22079AI
 
                 dgvUltimosAneisProcessados.Rows.Insert(0, new string[] {
                     insp.ID.ToString(),
-                    Diversos.NumberToString(insp.COMPRIMENTO,2,true) + " mm",
-                    Diversos.NumberToString(insp.AMPLITUDE_DESVIO_SUPERIOR,2,true) + " mm",
-                    Diversos.NumberToString(insp.POS_MAX_DESVIO_SUPERIOR,2,true) + " mm",
-                    Diversos.NumberToString(insp.AMPLITUDE_DESVIO_INFERIOR,2,true) + " mm",
-                    Diversos.NumberToString(insp.POS_MAX_DESVIO_INFERIOR,2,true) + " mm",
-                    insp.APROVED ? "OK" : insp.INSPECTION_RESULT == 3 ? "NOT OK" : "ERROR",
-                    //insp.INSPECTION_TIME.ToString() + " ms",
-                    insp.DT_INSPECTION.ToString("dd/MM HH:mm:ss") }); ;
+                    insp.APROVED ? "OK" : insp.INSPECTION_RESULT == 3 ? "NOT OK" : "ERROR",                  
+                    insp.DT_INSPECTION.ToString("dd/MM HH:mm:ss:FFF") }); ;
 
+
+                //Diversos.NumberToString(insp.COMPRIMENTO, 2, true) + " mm",
+                //Diversos.NumberToString(insp.AMPLITUDE_DESVIO_SUPERIOR, 2, true) + " mm",
+                //Diversos.NumberToString(insp.POS_MAX_DESVIO_SUPERIOR, 2, true) + " mm",
+                //Diversos.NumberToString(insp.AMPLITUDE_DESVIO_INFERIOR, 2, true) + " mm",
+                //Diversos.NumberToString(insp.POS_MAX_DESVIO_INFERIOR, 2, true) + " mm",
+                //insp.INSPECTION_TIME.ToString() + " ms",
 
                 if (!insp.APROVED)
                 {
@@ -853,7 +856,7 @@ namespace _22079AI
                 smallInspItem.Dock = System.Windows.Forms.DockStyle.Fill;
                 pnlInspAuto0.Controls.Add(smallInspItem);
 
-                smallInspItem.UpdateInfos(DB400.INSPECTION_RESULT, this.Inspection.LastInspectionImage, this.Inspection.UltimaImagemInspecao, this.Inspection.LastInspectionMsgErro, 808, 172);
+                smallInspItem.UpdateInfos(DB400.INSPECTION_RESULT, this.Inspection.UltimaImagemInspecao, this.Inspection.LastInspectionMsgErro, 808, 172);
 
             }
             catch (Exception ex)
@@ -880,21 +883,28 @@ namespace _22079AI
         //Este Timer NÂO é de 1Hz mas sim de 0.1Hz(100ms)
         private void Timer1Hz_Tick(object sender, EventArgs e)
         {
+            DateTime StartReset ; 
             if (VARIAVEIS.FORM_LOADED)
                 try
                 {
                     Timer01Hz.Stop();
-
+                    DB400.MANUAL_AUTO = PlcControl.StaCiclo.Vars.InAuto;
                     bool permissaoBotoes = this.VerificaAcesso(Sessao.SessaoOperador.Operador1, false) && VARIAVEIS.ESTADO_CONEXAO_PLC;
 
                     //Deteta as memorias de clock
                     //bool FP_CLOCK_1HZ = (DB400.CLOCK_1HZ != FP[0]) && DB400.CLOCK_1HZ;
-                    //bool FP_CLOCK_2HZ = (DB400.CLOCK_2HZ != FP[1]) && DB400.CLOCK_2HZ;
+                    //bool FP_CLOCK_2HZ = (DB400.CLOCK_2HZ != FP[1]) && DB400.CLOCK_2HZ
+                    
+                    //StartReset=DateTime.Now;
+                    //PlcControl.CmdCiclo.Vars.Reserved_2 = false;
 
-                    PlcControl.CmdCiclo.Vars.Reserved_2 = false;
                     //Atualiza o flash dos alarmes
                     //if (FP_CLOCK_1HZ)
                     AtualizaAnimacaoAlarmes();
+
+                    //TODO trocar pela variavel correcta
+                    //DB400.MANUAL_AUTO = PlcControl.StaCiclo.Vars.InAuto;
+
 
                     #region Ecrã Manual/Automático
                     if (DB400.MANUAL_AUTO && !this.fpManualAuto)
@@ -916,6 +926,11 @@ namespace _22079AI
 
                         //Atualizar a data e hora
                         lblDataHora.Text = Convert.ToString(DateTime.Now);
+
+                        PlcControl.CmdCiclo.Vars.Reserved_3 = false;
+                        PlcControl.CmdCiclo.Vars.Start = false;
+                        PlcControl.CmdCiclo.Vars.Stop = false;
+                        PlcControl.CmdCiclo.Vars.ManualRequest = false;
 
                         // Sessão
                         //Sessão de Operador
@@ -960,11 +975,15 @@ namespace _22079AI
                         //Atualizar led da iluminação
                         Diversos.AtualizaBackColor(btnTrigger, this.Inspection.InspecaoEmCurso, Color.LimeGreen, Color.White);
 
+                        textBox2.Text = Inspection.CounterInspNoTrigger.ToString();
+
+                        textBox3.Text = Inspection.CounterInspNoImgae.ToString();
                         //Habilitar os botões da trigger/iluminação/guardar imagem se houver uma sessão ativa
                         btnTrigger.Enabled = button3.Enabled = btnIluminacao.Enabled = permissaoBotoes && !this.Inspection.InspecaoEmCurso;
                         if (this.Inspection.GravacaoEmCurso)
                             button3.Enabled = false;
 
+                        Forms.MainForm.PlcControl.CmdCiclo.Vars.AutoRequest = false;
 
                         #endregion
 
@@ -1005,12 +1024,44 @@ namespace _22079AI
                             case 1: //Manual
                                 {
                                     #region Status botoes
+                                    //Tapetes
+                                    //run tapetes
+                                    Diversos.AtualizaBackColor(button29, PlcControl.StaTapetes.Vars.Running, Color.LimeGreen, Color.Transparent);
 
-                                    Diversos.AtualizaBackColor(button27, DB400.PORTA_ESQUERDA == 1 && VARIAVEIS.ESTADO_CONEXAO_PLC, Color.LimeGreen, Color.Transparent);
-                                    Diversos.AtualizaBackColor(button28, DB400.PORTA_DIREITA == 1 && VARIAVEIS.ESTADO_CONEXAO_PLC, Color.LimeGreen, Color.Transparent);
-                                    Diversos.AtualizaBackColor(button29, DB400.PORTA_DIREITA == 1 && DB400.PORTA_ESQUERDA == 1 && VARIAVEIS.ESTADO_CONEXAO_PLC, Color.LimeGreen, Color.Transparent);
-                                    Diversos.AtualizaBackColor(button30, DB400.PORTA_DIREITA == 2 && DB400.PORTA_ESQUERDA == 2 && VARIAVEIS.ESTADO_CONEXAO_PLC, Color.LimeGreen, Color.Transparent);
+                                    //stop tapetes
+                                    Diversos.AtualizaBackColor(button30, PlcControl.StaTapetes.Vars.Fault, Color.Red, Color.Transparent);
 
+                                    //enble tapetes
+                                    Diversos.AtualizaBackColor(button28, PlcControl.StaTapetes.Vars.Enabled, Color.LimeGreen, Color.Transparent);
+
+                                    //reset tapetes
+                                    Diversos.AtualizaBackColor(button27, PlcControl.CmdTapetes.Vars.Reset, Color.LimeGreen, Color.Transparent);
+                                    
+                                    //Alimentador rotativo
+                                    //run variador alimentacao
+                                    Diversos.AtualizaBackColor(button17, PlcControl.StaRotativo.Vars.Running, Color.LimeGreen, Color.Transparent);
+
+                                    //Stop variador alimentacao
+                                    Diversos.AtualizaBackColor(button15, PlcControl.StaRotativo.Vars.Fault, Color.Red, Color.Transparent);
+
+                                    //Reset variador alimentacao
+                                    Diversos.AtualizaBackColor(button7, PlcControl.CmdRotativo.Vars.Reset, Color.LimeGreen, Color.Transparent);
+
+                                    //enable variador alimentacao
+                                    Diversos.AtualizaBackColor(button6, PlcControl.StaRotativo.Vars.Enabled, Color.LimeGreen, Color.Transparent);
+
+                                    textBox1.Text = PlcControl.StaCiclo.Vars.Reserved_14.ToString();
+
+                                    PlcControl.CmdCiclo.Vars.Reserved_3 = false;
+                                    PlcControl.CmdCiclo.Vars.Start = false;
+                                    PlcControl.CmdCiclo.Vars.Stop = false;
+
+                                    //Velocdade variador alimentacao
+                                    if (!numericUpDown6.Focused)
+                                        numericUpDown6.Value = PlcControl.CmdRotativo.Vars.setspeed ;
+                                    //Velocdade variador Tapete
+                                    if (!numericUpDown2.Focused)
+                                        numericUpDown2.Value = PlcControl.CmdTapetes.Vars.setspeed;
                                     //robot
 
                                     //ledBulb3.On = DB400.STA_SAFE_POSITION && VARIAVEIS.ESTADO_CONEXAO_PLC;
@@ -1018,7 +1069,7 @@ namespace _22079AI
                                     //Diversos.AtualizaBackColor(button32, !INPUTS.SEN_ROBOT_GARRA_ABERTA && VARIAVEIS.ESTADO_CONEXAO_PLC, Color.LimeGreen, Color.Transparent);
 
                                     //permissoes botoes
-                                    button27.Enabled = button28.Enabled = button29.Enabled = button30.Enabled  = permissaoBotoes && !VARIAVEIS.WINDOW_OPEN;
+                                    //button27.Enabled = button28.Enabled = button29.Enabled = button30.Enabled  = permissaoBotoes && !VARIAVEIS.WINDOW_OPEN;
                                     #endregion
 
                                     //TODO
@@ -1033,8 +1084,8 @@ namespace _22079AI
                                     button5.Enabled = VARIAVEIS.ESTADO_CONEXAO_PLC;
                                     Diversos.AtualizaBackColor(button5, DB400.BYPASS_SECURITY, Color.LimeGreen, Color.White);
 
-                                    button27.Visible = this.VerificaAcesso(Sessao.SessaoOperador.Administrador, false);
-                                    button28.Visible = this.VerificaAcesso(Sessao.SessaoOperador.Administrador, false);
+                                    //button27.Visible = this.VerificaAcesso(Sessao.SessaoOperador.Administrador, false);
+                                    //button28.Visible = this.VerificaAcesso(Sessao.SessaoOperador.Administrador, false);
 
                                     break;
                                 }
@@ -1086,6 +1137,10 @@ namespace _22079AI
                     if (this.tabControlEx1.SelectedIndex == 1)
                     {
                         //******** blinks alarmes ********
+                       // button29.BackColor = (PlcControl.StaTapetes.Vars.Fault == false ? Color.LimeGreen : Color.Yellow);
+                       // button30.BackColor = (PlcControl.CmdTapetes.Vars.Run == false ? Color.LimeGreen : Color.Yellow);
+                        
+                        //
 
                     }
                     #endregion
@@ -1102,11 +1157,30 @@ namespace _22079AI
                     if (this.Inspection.InspecaoEmCurso == (lblTempoAcquisicao.ForeColor == Color.White)) //mostra resultados
                         UpdateInspectionStatus(this.Inspection.ResultadoInspecao);
 
+                    if (!numericUpDown1.Focused)
+                    {
+                        numericUpDown1.Value = Inspection.ConfigConvoyer.ExpelAprovedPulse;
+                    }
+                    if (!numericUpDown3.Focused)
+                    {
+                        numericUpDown3.Value = Inspection.ConfigConvoyer.ExpelAprovedTime;
+                    }
+                    if (!numericUpDown5.Focused)
+                    {
+                        numericUpDown5.Value = Inspection.ConfigConvoyer.ExpelReprovedPulse;
+                    }
+                    if (!numericUpDown4.Focused)
+                    {
+                        numericUpDown4.Value = Inspection.ConfigConvoyer.ExpelReprovedTime;
+                    }
 
-                    //label8.Visible = this.Inspection.ErroInspecao;
-                    //label8.Text = this.Inspection.MensagemErro;
 
-                    if (true)
+
+
+                        //label8.Visible = this.Inspection.ErroInspecao;
+                        //label8.Text = this.Inspection.MensagemErro;
+
+                        if (true)
                     {
                         button4.Visible = button10.Visible = button13.Visible = button14.Visible = this.VerificaAcesso(Sessao.SessaoOperador.SuperAdministrador, false);
                         label6.Visible = label10.Visible = lblTempoAcquisicao.Visible = lblTempoInspecao.Visible = this.VerificaAcesso(Sessao.SessaoOperador.Administrador, false);
@@ -1168,6 +1242,9 @@ namespace _22079AI
                         Diversos.AtualizaBackColor(ledM0_5, INPUTS.SEN_PORTA_DIREITA_ABERTA);
                         Diversos.AtualizaBackColor(ledM0_6, INPUTS.SEN_PORTA_ESQUERDA_FECHADA);
                         Diversos.AtualizaBackColor(ledM0_7, INPUTS.SEN_PORTA_ESQUERDA_ABERTA);
+
+                        
+                        
 
                         Diversos.AtualizaBackColor(ledM1_0, INPUTS.SEN_KNIFE_CONVYER_DETECTED);
                         Diversos.AtualizaBackColor(ledM1_1, INPUTS.SEN_INDEX_FACA_BAIXO);
@@ -1461,7 +1538,7 @@ namespace _22079AI
 
 
             //Habilita também a alteração do num de lote
-            txtNumSerieReceita.Enabled = VerificaAcesso(Sessao.SessaoOperador.Operador1, false) && Receita.ReceitaCarregada;
+           // txtNumSerieReceita.Enabled = VerificaAcesso(Sessao.SessaoOperador.Operador1, false) && Receita.ReceitaCarregada;
         }
 
         private void tabControlEx1_SelectedIndexChanged(object sender, EventArgs e)
@@ -1486,13 +1563,9 @@ namespace _22079AI
                 case 0: //Automático
                     {
                         #region Itens da Receita
-                        label68.Text = Receita.Referencia;
-                        label66.Text = Receita.Designacao;
-                        label113.Text = Diversos.NumberToString(this.Receita.ComprimentoNominal, 2, true) + " mm";
-                        label43.Text = Diversos.NumberToString(this.Receita.ToleranciaComprimento, 2, true) + " mm";
-                        label69.Text = Receita.NumSerie;
-                        label44.Text = Diversos.NumberToString(this.Receita.ToleranciaDesvioSuperior, 2, true) + " mm";
-                        label45.Text = Diversos.NumberToString(this.Receita.ToleranciaDesvioInferior, 2, true) + " mm";
+
+                        label68.Text = Receita._ReceitaCarregada.NOME;
+                        label66.Text = Receita._ReceitaCarregada.DESCRICAO;
 
                         #endregion
 
@@ -1786,24 +1859,25 @@ namespace _22079AI
         {
             try
             {
-                lblReferenciaReceita.Text = Receita.Referencia;
-                lblReceitaCarregadaBottomBar.Text = Receita.Referencia;
-                txtNumSerieReceita.Text = Receita.NumSerie;
-                lblUtilizadorReceita.Text = Receita.NomeOperador;
-                lblDesignacaoReceita.Text = Receita.Designacao;
-                lblDistanciaCamFaca.Text = Diversos.NumberToString(Receita.CompRegiaoInsp, 0, true) + " px";
-                lblComprimentoNominal.Text = Diversos.NumberToString(Receita.ComprimentoNominal, 3, true) + " mm";
-                lblToleranciaComprimento.Text = Diversos.NumberToString(Receita.ToleranciaComprimento, 3, true) + " mm";
-                lblDesvioNominal.Text = Diversos.NumberToString(Receita.DesvioNominal, 3, true) + " mm";
-                lblToleranciaDesvio.Text = Diversos.NumberToString(Receita.ToleranciaDesvioSuperior, 3, true) + " mm";
+                lblReferenciaReceita.Text = Receita._ReceitaCarregada.NOME;
+                lblReceitaCarregadaBottomBar.Text = Receita._ReceitaCarregada.NOME;
+                lblDesignacaoReceita.Text = Receita._ReceitaCarregada.DESCRICAO;
+                label41.Text = Convert.ToString(Receita.DataHoraAlteracao);
 
-                lblDataHoraInicioReceita.Text = Convert.ToString(Receita.DataHoraAlteracao);
+                txtComprimentoEncascadoLeve.Text = (Receita._ReceitaCarregada.ENCASCADO_LEVE.COMPRIMENTO.ToString("0.000")).ToString();
+                txtEspessuraEncascadoLeve.Text = (Receita._ReceitaCarregada.ENCASCADO_LEVE.ESPESSURA.ToString("0.000")).ToString();
+                txtComprimentoTonalidadeMaxLeve.Text = (Receita._ReceitaCarregada.ENCASCADO_LEVE.TONALIDADE_MAX.ToString("0.000")).ToString();
+                txtComprimentoTonalidadeMinLeve.Text = (Receita._ReceitaCarregada.ENCASCADO_LEVE.TONALIDADE_MIN.ToString("0.000")).ToString();
 
-                label53.Text = this.Receita.SpOK.ToString();
-                label57.Text = this.Receita.SpNOK.ToString();
+                txtComprimentoEncascadoModerado.Text = (Receita._ReceitaCarregada.ENCASCADO_MODERADO.COMPRIMENTO.ToString("0.000")).ToString();
+                txtEspessuraEncascadoModerado.Text = (Receita._ReceitaCarregada.ENCASCADO_MODERADO.ESPESSURA.ToString("0.000")).ToString();
+                txtComprimentoTonalidadeMaxModerado.Text = (Receita._ReceitaCarregada.ENCASCADO_MODERADO.TONALIDADE_MAX.ToString("0.000")).ToString();
+                txtComprimentoTonalidadeMinModerado.Text = (Receita._ReceitaCarregada.ENCASCADO_MODERADO.TONALIDADE_MIN.ToString("0.000")).ToString();
 
-                //Preencher a imagem guardada
-                pctImagemFaca.Image = Receita.CarregaImagemFaca();
+                txtComprimentoEncascadoVincado.Text = (Receita._ReceitaCarregada.ENCASCADO_VINCADO.COMPRIMENTO.ToString("0.000")).ToString();
+                txtEspessuraEncascadoVincado.Text = (Receita._ReceitaCarregada.ENCASCADO_VINCADO.ESPESSURA.ToString("0.000")).ToString();
+                txtComprimentoTonalidadeMaxVincado.Text = (Receita._ReceitaCarregada.ENCASCADO_VINCADO.TONALIDADE_MAX.ToString("0.000")).ToString();
+                txtComprimentoTonalidadeMinVincado.Text = (Receita._ReceitaCarregada.ENCASCADO_VINCADO.TONALIDADE_MIN.ToString("0.000")).ToString();
 
             }
             catch (Exception ex)
@@ -1841,7 +1915,7 @@ namespace _22079AI
         {
             if (VerificaAcesso(Sessao.SessaoOperador.Operador1, false))
                 if (Receita.ReceitaCarregada)
-                    Receita.AlteraNumSerie(txtNumSerieReceita.Text);
+                    Receita.AlteraNumSerie(Receita._ReceitaCarregada.ID);
 
             this.AtualizaInformacoesReceita();
         }
@@ -1855,7 +1929,7 @@ namespace _22079AI
                     e.Handled = true;
 
                     if (Receita.ReceitaCarregada)
-                        Receita.AlteraNumSerie(txtNumSerieReceita.Text);
+                        Receita.AlteraNumSerie(Receita._ReceitaCarregada.ID);
                 }
             }
             else
@@ -1908,10 +1982,6 @@ namespace _22079AI
             PlcControl.HmiPlcFeedbackdisc.menber.ID = 0;
         }
 
-        private void Button4_Click_1(object sender, EventArgs e)
-        {
-            this.Inspection.FazTrigger();
-        }
 
         private void Button10_Click(object sender, EventArgs e)
         {
@@ -1977,16 +2047,26 @@ namespace _22079AI
         private void Button29_Click(object sender, EventArgs e)
         {
 
+            PlcControl.CmdTapetes.Vars.Run = true;
+            //if (PlcControl.StaTapetes.Vars.Running)
+            //{
+                
+            //}
+            //else
+            //{
+                
+            //}
         }
 
         private void Button30_Click(object sender, EventArgs e)
         {
-
+            PlcControl.CmdTapetes.Vars.Run = false;
         }
 
         private void Button27_Click(object sender, EventArgs e)
         {
-
+            
+            PlcControl.CmdTapetes.Vars.Reset = !PlcControl.CmdTapetes.Vars.Reset;
         }
 
         private void Button28_Click(object sender, EventArgs e)
@@ -2058,7 +2138,87 @@ namespace _22079AI
                 }
         }
 
+        private void numericUpDown2_ValueChanged(object sender, EventArgs e)
+        {
+            PlcControl.CmdTapetes.Vars.setspeed = (int)numericUpDown2.Value;
+        }
 
+        private void label3_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void numericUpDown1_ValueChanged(object sender, EventArgs e)
+        {
+            Inspection.ConfigConvoyer.ExpelAprovedPulse = (int)numericUpDown1.Value;
+            Inspection.EscreveParametrosConfigConvoyer();
+        }
+
+        private void numericUpDown3_ValueChanged(object sender, EventArgs e)
+        {
+            Inspection.ConfigConvoyer.ExpelAprovedTime = (int)numericUpDown3.Value;
+        }
+
+        private void numericUpDown5_ValueChanged(object sender, EventArgs e)
+        {
+            Inspection.ConfigConvoyer.ExpelReprovedPulse = (int)numericUpDown5.Value;
+        }
+
+        private void numericUpDown4_ValueChanged(object sender, EventArgs e)
+        {
+            
+            Inspection.ConfigConvoyer.ExpelReprovedTime = (int)numericUpDown4.Value;
+        }
+
+        //run variador alimentacao
+        private void button17_Click(object sender, EventArgs e)
+        {
+            PlcControl.CmdRotativo.Vars.Run = true;
+        }
+        //Stop variador alimentacao
+        private void button15_Click(object sender, EventArgs e)
+        {
+            PlcControl.CmdRotativo.Vars.Run = false;
+        }
+        //Reset variador alimentacao
+        private void button7_Click(object sender, EventArgs e)
+        {
+            PlcControl.CmdRotativo.Vars.Reset = !PlcControl.CmdRotativo.Vars.Reset;  
+        }
+        //enable variador alimentacao
+        private void button6_Click(object sender, EventArgs e)
+        {
+            
+        }
+        //Velocdade variador alimentacao
+        private void numericUpDown6_ValueChanged(object sender, EventArgs e)
+        {
+            PlcControl.CmdRotativo.Vars.setspeed = (int)numericUpDown6.Value;
+        }
+
+        private void button31_MouseClick(object sender, MouseEventArgs e)
+        {
+            PlcControl.CmdCiclo.Vars.Reserved_3 = true;
+        }
+
+        private void button32_MouseClick(object sender, MouseEventArgs e)
+        {
+            lock (this) { 
+            Inspection.CounterInspNoTrigger = 0;
+                Inspection.CounterInspNoImgae = 0;
+            }
+        }
+        //Botao de start em automatico
+        private void button33_Click(object sender, EventArgs e)
+        {
+            PlcControl.CmdCiclo.Vars.Start = true;
+        }
+
+        private void button34_Click_1(object sender, EventArgs e)
+        {
+           
+            PlcControl.CmdCiclo.Vars.Stop = true;
+        }
 
         private void Button35_Click(object sender, EventArgs e)
         {

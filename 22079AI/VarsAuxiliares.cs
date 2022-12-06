@@ -254,7 +254,7 @@ namespace _22079AI
                     sqlCmd.Parameters.Add("@IdPLC", SqlDbType.BigInt).Value = data.ID;
                     sqlCmd.Parameters.Add("@UnixPLC", SqlDbType.Int).Value = data.UNIX_TIME;
                     sqlCmd.Parameters.Add("@IdUser", SqlDbType.TinyInt).Value = Forms.MainForm.UserSession.IDOperador;
-                    sqlCmd.Parameters.Add("@IdReceita", SqlDbType.SmallInt).Value = Forms.MainForm.Receita.ID;
+                    sqlCmd.Parameters.Add("@IdReceita", SqlDbType.SmallInt).Value = Forms.MainForm.Receita._ReceitaCarregada.ID;
                     sqlCmd.Parameters.Add("@Comprimento", SqlDbType.Real).Value = data.COMPRIMENTO;
                     sqlCmd.Parameters.Add("@AmplitudeDesvioSuperior", SqlDbType.Real).Value = data.AMPLITUDE_DESVIO_SUPERIOR;
                     sqlCmd.Parameters.Add("@PosMaxDesvioSuperior", SqlDbType.Real).Value = data.POS_MAX_DESVIO_SUPERIOR;

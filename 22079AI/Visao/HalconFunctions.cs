@@ -319,8 +319,8 @@ namespace _22079AI
     public class AuxiliarHalconImageClass
     {
         public bool DadosCarregados { get; private set; } = false;
-
-        public HImage hImage { get; private set; } = null;
+        public HObject inputImage { get; private set; } = null;
+        public HObject outputImage { get; private set; } = null;
         public HObject regions { get; private set; } = null;
         public HTuple colors { get; private set; } = null;
 
@@ -329,12 +329,13 @@ namespace _22079AI
             this.LimpaDados();
         }
 
-        public void UpdateDados(HImage hImage)
+        public void UpdateDados(HObject inputImage, HObject regions, HObject outputImage)
         {
             this.LimpaDados();
 
-            this.hImage = hImage;
-            //this.regions = regions;
+            this.inputImage = inputImage;
+            this.outputImage = outputImage;
+            this.regions = regions;
             //this.colors = colors;
 
             this.DadosCarregados = true;
@@ -348,10 +349,16 @@ namespace _22079AI
 
         public void LimpaDados()
         {
-            if (this.hImage != null)
+            if (this.inputImage != null)
             {
-                this.hImage.Dispose();
-                this.hImage = null;
+                this.inputImage.Dispose();
+                this.inputImage = null;
+            }
+
+            if (this.outputImage != null)
+            {
+                this.outputImage.Dispose();
+                this.outputImage = null;
             }
 
             if (this.regions != null)

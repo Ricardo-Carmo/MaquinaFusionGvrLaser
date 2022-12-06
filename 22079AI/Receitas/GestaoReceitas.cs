@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Data.SqlClient;
+using System.Data.SqlTypes;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
@@ -72,7 +73,7 @@ namespace _22079AI
          private void AtualizaListaReceitas(string value)
         {
             bool firstRun = false;
-            string strQuery = "SELECT ID, NOME AS 'Referência', DESCRICAO AS 'Descrição', COMPRIMENTO_NOMINAL AS 'Comprimento Nominal', ULTIMA_MODIFICACAO AS 'Última Modificação' FROM RECEITA WHERE ID > 0 ";
+            string strQuery = "SELECT ID, NOME AS 'Referência', DESCRICAO AS 'Descrição', DATA_MODIFICACAO AS 'Última Modificação' FROM RECEITA WHERE ID > 0 ";
 
             if (!string.IsNullOrWhiteSpace(value))
                 strQuery += " AND NOME LIKE @NAME ";
@@ -121,7 +122,7 @@ namespace _22079AI
                 //Selecionar o row consoante o ID
                 for (int i = 0; i < dgvReceitas.RowCount; i++)
                 {
-                    if (Forms.MainForm.Receita.ID == Convert.ToInt32(dgvReceitas.Rows[i].Cells[0].Value))
+                    if (Forms.MainForm.Receita._ReceitaCarregada.ID == Convert.ToInt32(dgvReceitas.Rows[i].Cells[0].Value))
                     {
                         dgvReceitas.Rows[i].Selected = true;
                         break;
@@ -189,7 +190,7 @@ namespace _22079AI
                     return;
                 }
 
-                if (Forms.MainForm.Receita.ReceitaCarregada && Forms.MainForm.Receita.ID == id)
+                if (Forms.MainForm.Receita.ReceitaCarregada && Forms.MainForm.Receita._ReceitaCarregada.ID == id)
                     new CaixaMensagem("A receita selecionada está atualmente em uso. Por favor carregue outra receita e tente novamente!", "Receita em Uso", CaixaMensagem.TipoMsgBox.Warning, FormStartPosition.CenterScreen).ShowDialog();
                 else
                   if (new CaixaMensagem("Deseja eliminar a receita '" + label87.Text + "'? Esta ação é irreversível!", "Eliminar Receita", CaixaMensagem.TipoMsgBox.Question, FormStartPosition.CenterScreen).ShowDialog() == DialogResult.Yes)
@@ -204,7 +205,7 @@ namespace _22079AI
 
                             numOfRows = sqlCmd.ExecuteNonQuery();
                         }
-
+                        
                     }
                     catch (Exception ex)
                     {

@@ -30,7 +30,7 @@ namespace _22079AI
         private void AtualizaListaReceitas(string value)
         {
             bool firstRun = false;
-            string strQuery = "SELECT ID, NOME AS 'Referência', DESCRICAO AS 'Descrição', COMPRIMENTO_NOMINAL AS 'Comprimento Nominal',  ULTIMA_MODIFICACAO AS 'Última Modificação' FROM RECEITA WHERE ID > 0 ";
+            string strQuery = "SELECT ID, NOME AS 'Nome', DESCRICAO AS 'Descrição',  DATA_MODIFICACAO AS 'Última Modificação' FROM RECEITA WHERE ID > 0 ";
 
             if (!string.IsNullOrWhiteSpace(value))
                 strQuery += " AND NOME LIKE @NAME ";
@@ -52,7 +52,7 @@ namespace _22079AI
                         da.Fill(ds);
 
                         firstRun = dgvReceitas.DataSource == null;
-
+                        //Forms.MainForm.Receita._ReceitaCarregada.ID1 = 1;
                         dgvReceitas.DataSource = ds.Tables[0];
                     }
                 }
@@ -69,8 +69,7 @@ namespace _22079AI
                     //Selecionar o tamanho das colunas
                     dgvReceitas.Columns[0].Width = 20; //ID
                     dgvReceitas.Columns[2].Width = 40; //descricao
-                    dgvReceitas.Columns[3].Width = 40; //comprimento
-                    dgvReceitas.Columns[4].Width = 135; //Última modificação
+                    dgvReceitas.Columns[3].Width = 135; //Última modificação
 
                 }
 
@@ -79,7 +78,7 @@ namespace _22079AI
                 //Selecionar o row consoante o ID
                 for (int i = 0; i < dgvReceitas.RowCount; i++)
                 {
-                    if (Forms.MainForm.Receita.ID == Convert.ToInt32(dgvReceitas.Rows[i].Cells[0].Value))
+                    if (Forms.MainForm.Receita._ReceitaCarregada.ID == Convert.ToInt32(dgvReceitas.Rows[i].Cells[0].Value))
                     {
                         dgvReceitas.Rows[i].Selected = true;
                         break;
@@ -105,7 +104,7 @@ namespace _22079AI
         private void button2_Click(object sender, EventArgs e)
         {
             if (dgvReceitas.RowCount > 0 && dgvReceitas.SelectedRows.Count > 0)
-                if (Forms.MainForm.Receita.AtualizaReceita(Convert.ToInt32(dgvReceitas.SelectedRows[0].Cells[0].Value), Forms.MainForm.UserSession.IDOperador, string.Empty, DateTime.Now, true))
+                if (Forms.MainForm.Receita.AtualizaReceita(Convert.ToInt32(dgvReceitas.SelectedRows[0].Cells[0].Value), Forms.MainForm.UserSession.IDOperador, DateTime.Now, true))
                 {
                     //Enviar para o PLC a flag de nova receita
                     //Forms.MainForm.PLC1.EnviaTag(PLC.Siemens.MemoryArea.DB, PLC.Siemens.TipoVariavel.Bool, true, 20, 4, 0);

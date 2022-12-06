@@ -33,8 +33,6 @@
             this.panel1 = new System.Windows.Forms.Panel();
             this.panel3 = new System.Windows.Forms.Panel();
             this.button6 = new System.Windows.Forms.Button();
-            this.button8_1 = new System.Windows.Forms.Button();
-            this.button8_0 = new System.Windows.Forms.Button();
             this.button7 = new System.Windows.Forms.Button();
             this.button3 = new System.Windows.Forms.Button();
             this.button4 = new System.Windows.Forms.Button();
@@ -43,7 +41,6 @@
             this.label3 = new System.Windows.Forms.Label();
             this.label6 = new System.Windows.Forms.Label();
             this.button1 = new System.Windows.Forms.Button();
-            this.label7 = new System.Windows.Forms.Label();
             this.label5 = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
@@ -80,14 +77,12 @@
             this.panel1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.panel1.Location = new System.Drawing.Point(0, 0);
             this.panel1.Name = "panel1";
-            this.panel1.Size = new System.Drawing.Size(466, 486);
+            this.panel1.Size = new System.Drawing.Size(466, 434);
             this.panel1.TabIndex = 0;
             // 
             // panel3
             // 
             this.panel3.Controls.Add(this.button6);
-            this.panel3.Controls.Add(this.button8_1);
-            this.panel3.Controls.Add(this.button8_0);
             this.panel3.Controls.Add(this.button7);
             this.panel3.Controls.Add(this.button3);
             this.panel3.Controls.Add(this.button4);
@@ -96,7 +91,6 @@
             this.panel3.Controls.Add(this.label3);
             this.panel3.Controls.Add(this.label6);
             this.panel3.Controls.Add(this.button1);
-            this.panel3.Controls.Add(this.label7);
             this.panel3.Controls.Add(this.label5);
             this.panel3.Controls.Add(this.label1);
             this.panel3.Controls.Add(this.label2);
@@ -105,7 +99,7 @@
             this.panel3.Dock = System.Windows.Forms.DockStyle.Fill;
             this.panel3.Location = new System.Drawing.Point(10, 45);
             this.panel3.Name = "panel3";
-            this.panel3.Size = new System.Drawing.Size(444, 382);
+            this.panel3.Size = new System.Drawing.Size(444, 330);
             this.panel3.TabIndex = 119;
             // 
             // button6
@@ -124,40 +118,6 @@
             this.button6.TextImageRelation = System.Windows.Forms.TextImageRelation.ImageBeforeText;
             this.button6.UseVisualStyleBackColor = false;
             this.button6.Click += new System.EventHandler(this.Button6_0_Click);
-            // 
-            // button8_1
-            // 
-            this.button8_1.BackColor = System.Drawing.Color.White;
-            this.button8_1.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.button8_1.Font = new System.Drawing.Font("Arial", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.button8_1.ForeColor = System.Drawing.Color.Black;
-            this.button8_1.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
-            this.button8_1.Location = new System.Drawing.Point(236, 326);
-            this.button8_1.Name = "button8_1";
-            this.button8_1.Size = new System.Drawing.Size(190, 38);
-            this.button8_1.TabIndex = 97;
-            this.button8_1.TabStop = false;
-            this.button8_1.Text = "Box Reprovados Presente";
-            this.button8_1.TextImageRelation = System.Windows.Forms.TextImageRelation.ImageBeforeText;
-            this.button8_1.UseVisualStyleBackColor = false;
-            this.button8_1.Click += new System.EventHandler(this.Button8_1_Click);
-            // 
-            // button8_0
-            // 
-            this.button8_0.BackColor = System.Drawing.Color.White;
-            this.button8_0.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-            this.button8_0.Font = new System.Drawing.Font("Arial", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.button8_0.ForeColor = System.Drawing.Color.Black;
-            this.button8_0.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
-            this.button8_0.Location = new System.Drawing.Point(38, 326);
-            this.button8_0.Name = "button8_0";
-            this.button8_0.Size = new System.Drawing.Size(190, 38);
-            this.button8_0.TabIndex = 97;
-            this.button8_0.TabStop = false;
-            this.button8_0.Text = "Box Aprovados Presente";
-            this.button8_0.TextImageRelation = System.Windows.Forms.TextImageRelation.ImageBeforeText;
-            this.button8_0.UseVisualStyleBackColor = false;
-            this.button8_0.Click += new System.EventHandler(this.Button8_0_Click);
             // 
             // button7
             // 
@@ -222,7 +182,7 @@
             this.button5.Size = new System.Drawing.Size(388, 38);
             this.button5.TabIndex = 92;
             this.button5.TabStop = false;
-            this.button5.Text = "Robot - Preparado";
+            this.button5.Text = "Alimentação - Preparado";
             this.button5.TextImageRelation = System.Windows.Forms.TextImageRelation.ImageBeforeText;
             this.button5.UseVisualStyleBackColor = false;
             this.button5.Click += new System.EventHandler(this.Button5_Click);
@@ -282,18 +242,6 @@
             this.button1.Text = "Emergência OK";
             this.button1.TextImageRelation = System.Windows.Forms.TextImageRelation.ImageBeforeText;
             this.button1.UseVisualStyleBackColor = false;
-            // 
-            // label7
-            // 
-            this.label7.AutoSize = true;
-            this.label7.BackColor = System.Drawing.Color.Transparent;
-            this.label7.Font = new System.Drawing.Font("Cambria", 12F);
-            this.label7.ForeColor = System.Drawing.Color.White;
-            this.label7.Location = new System.Drawing.Point(8, 336);
-            this.label7.Name = "label7";
-            this.label7.Size = new System.Drawing.Size(24, 19);
-            this.label7.TabIndex = 84;
-            this.label7.Text = "8)";
             // 
             // label5
             // 
@@ -368,7 +316,7 @@
             this.panel105.Controls.Add(this.button57);
             this.panel105.Controls.Add(this.btnSim);
             this.panel105.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.panel105.Location = new System.Drawing.Point(10, 427);
+            this.panel105.Location = new System.Drawing.Point(10, 375);
             this.panel105.Name = "panel105";
             this.panel105.Size = new System.Drawing.Size(444, 57);
             this.panel105.TabIndex = 117;
@@ -412,7 +360,7 @@
             this.panel107.Dock = System.Windows.Forms.DockStyle.Right;
             this.panel107.Location = new System.Drawing.Point(454, 35);
             this.panel107.Name = "panel107";
-            this.panel107.Size = new System.Drawing.Size(10, 449);
+            this.panel107.Size = new System.Drawing.Size(10, 397);
             this.panel107.TabIndex = 116;
             // 
             // panel108
@@ -420,7 +368,7 @@
             this.panel108.Dock = System.Windows.Forms.DockStyle.Left;
             this.panel108.Location = new System.Drawing.Point(0, 35);
             this.panel108.Name = "panel108";
-            this.panel108.Size = new System.Drawing.Size(10, 449);
+            this.panel108.Size = new System.Drawing.Size(10, 397);
             this.panel108.TabIndex = 115;
             // 
             // panel56
@@ -479,7 +427,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(466, 486);
+            this.ClientSize = new System.Drawing.Size(466, 434);
             this.Controls.Add(this.panel1);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
@@ -527,8 +475,5 @@
         private System.Windows.Forms.Button button1;
         private System.Windows.Forms.Button button6;
         private System.Windows.Forms.Label label6;
-        private System.Windows.Forms.Button button8_0;
-        private System.Windows.Forms.Button button8_1;
-        private System.Windows.Forms.Label label7;
     }
 }

@@ -75,21 +75,21 @@ namespace _22079AI
             button7.Enabled = VARIAVEIS.ESTADO_CONEXAO_PLC;
             #endregion
 
+            Forms.MainForm.PlcControl.CmdCiclo.Vars.Reserved_5 = false;
 
-            Diversos.AtualizaBackColor(button1, DB400.EMERGENCIA && VARIAVEIS.ESTADO_CONEXAO_PLC, Color.LimeGreen, Color.White);
-            Diversos.AtualizaBackColor(button2, DB400.INF_RECEITA_CARREGADA && Forms.MainForm.Receita.ReceitaCarregada && VARIAVEIS.ESTADO_CONEXAO_PLC, Color.LimeGreen, Color.White);
-            Diversos.AtualizaBackColor(button3, DB400.INF_ALL_INIT_POS_OK && VARIAVEIS.ESTADO_CONEXAO_PLC, Color.LimeGreen, Color.White); //Ar OK
-            Diversos.AtualizaBackColor(button4, DB400.INF_TRANSPORTER_READY && VARIAVEIS.ESTADO_CONEXAO_PLC, Color.LimeGreen, Color.White);
-            Diversos.AtualizaBackColor(button5, DB400.INF_ROBO_READY && VARIAVEIS.ESTADO_CONEXAO_PLC, Color.LimeGreen, Color.White);
-            Diversos.AtualizaBackColor(button6, Forms.MainForm.ledCam.BackColor == Color.LimeGreen && DB400.CAM_TRIGGER_MODE && VARIAVEIS.ESTADO_CONEXAO_PLC, Color.LimeGreen, Color.White);
-            Diversos.AtualizaBackColor(button7, DB400.ALL_DOORS_CLOSED && VARIAVEIS.ESTADO_CONEXAO_PLC, Color.LimeGreen, Color.White);
+            Diversos.AtualizaBackColor(button1, Forms.MainForm.PlcControl.StaCiclo.Vars.EmergencyOk, Color.LimeGreen, Color.White);
+            Diversos.AtualizaBackColor(button2, Forms.MainForm.Receita.ReceitaCarregada, Color.LimeGreen, Color.White);
+            Diversos.AtualizaBackColor(button3, Forms.MainForm.PlcControl.StaCiclo.Vars.ReadyForAuto, Color.LimeGreen, Color.White); //Ar OK
+            Diversos.AtualizaBackColor(button4, Forms.MainForm.PlcControl.StaCiclo.Vars.TapeteReady, Color.LimeGreen, Color.White);
+            Diversos.AtualizaBackColor(button5, Forms.MainForm.PlcControl.StaCiclo.Vars.AlimentadorReady, Color.LimeGreen, Color.White);
+            Diversos.AtualizaBackColor(button6, Forms.MainForm.PlcControl.StaCiclo.Vars.ReadyForAuto, Color.LimeGreen, Color.White);
+            Diversos.AtualizaBackColor(button7, Forms.MainForm.PlcControl.StaCiclo.Vars.ReadyForAuto, Color.LimeGreen, Color.White);
 
-            Diversos.AtualizaBackColor(button8_0, DB400.CAIXA_PRESENTE_APROVADOS && VARIAVEIS.ESTADO_CONEXAO_PLC, Color.LimeGreen, Color.Yellow);
-            Diversos.AtualizaBackColor(button8_1, DB400.CAIXA_PRESENTE_REPROVADOS && VARIAVEIS.ESTADO_CONEXAO_PLC, Color.LimeGreen, Color.Yellow);
+
 
 
             //Botão de Confirmação
-            Diversos.AtualizaBackColor(btnSim, DB400.READY_TO_AUTO && Forms.MainForm.Receita.ReceitaCarregada && VARIAVEIS.ESTADO_CONEXAO_PLC, Color.LimeGreen, Color.White);
+            Diversos.AtualizaBackColor(btnSim, Forms.MainForm.PlcControl.StaCiclo.Vars.ReadyForAuto && Forms.MainForm.Receita.ReceitaCarregada , Color.LimeGreen, Color.White);
 
             //TODO
             btnSim.Enabled = btnSim.BackColor == Color.LimeGreen;
@@ -111,23 +111,26 @@ namespace _22079AI
 
         private void btnSim_Click(object sender, EventArgs e)
         {
+            Forms.MainForm.PlcControl.CmdCiclo.Vars.AutoRequest = true;
             this.Close();
         }
 
         private void button4_Click(object sender, EventArgs e)
         {
-            //Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, true, 30, 2, 0);
+            Forms.MainForm.PlcControl.CmdCiclo.Vars.Reserved_5 = true;
         }
 
 
         private void button3_Click(object sender, EventArgs e)
         {
             //Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, true, 20, 2, 3);
+            Forms.MainForm.PlcControl.CmdCiclo.Vars.Reserved_5 = true;
         }
 
         private void Button6_1_Click(object sender, EventArgs e)
         {
             //Forms.MainForm.PLC1.EnviaTag(Siemens.MemoryArea.DB, Siemens.TipoVariavel.Bool, false, 23, 0, 0);
+            Forms.MainForm.PlcControl.CmdCiclo.Vars.Reserved_5 = true;
         }
 
         private void Button6_0_Click(object sender, EventArgs e)

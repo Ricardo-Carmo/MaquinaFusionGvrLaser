@@ -372,6 +372,7 @@
     <Content Include="Imagens\pallete.bmp" />
     <None Include="Imagens\seta_dir.png" />
     <None Include="Imagens\seta_esq.png" />
+    <None Include="Resources\Sem Título.png" />
     <Content Include="STREAK_LOGO_GERAL_V0_SMALL.ico" />
     <None Include="Imagens\imagem-nao-disponivel.jpg" />
     <None Include="Imagens\1485273907_121.png" />

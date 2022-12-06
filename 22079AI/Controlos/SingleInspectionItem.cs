@@ -34,14 +34,14 @@ namespace _22079AI
             InitializeComponent();
         }
 
-        public SingleInspectionItem(Inspection data, HObject smallImage, AuxiliarHalconImageClass imagemInspecao, string error, int comprimento, int altura)
+        public SingleInspectionItem(Inspection data, AuxiliarHalconImageClass imagemInspecao, string error, int comprimento, int altura)
         {
             InitializeComponent();
 
-            this.UpdateInfos(data, smallImage, imagemInspecao, error, comprimento, altura);
+            this.UpdateInfos(data, imagemInspecao, error, comprimento, altura);
         }
 
-        public void UpdateInfos(Inspection data, HObject smallImage, AuxiliarHalconImageClass imagemInspecao, string error, int comprimento, int altura)
+        public void UpdateInfos(Inspection data, AuxiliarHalconImageClass imagemInspecao, string error, int comprimento, int altura)
         {
             this.ImagemInspecao = imagemInspecao;
 
@@ -84,12 +84,12 @@ namespace _22079AI
 
             this.Display.ClearWindow();
 
-            if (smallImage != null)
+            if (imagemInspecao.outputImage != null)
             {
                 //this.WindowControl.ImagePart = new Rectangle(0, 0, comprimento, altura);
                 this.WindowControl.HalconWindow.SetPart(0, 0, 200, 808);
                 //this.Display.SetPart(0, 0, -2, -2);
-                this.Display.DispObj(smallImage);
+                this.Display.DispObj(imagemInspecao.outputImage);
                 //this.WindowControl.HalconWindow.SetPart(0, 0, comprimento, altura);
             }
 

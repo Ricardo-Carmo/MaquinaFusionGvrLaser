@@ -133,6 +133,16 @@ namespace _22079AI.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
+        internal static System.Drawing.Bitmap Sem_Título {
+            get {
+                object obj = ResourceManager.GetObject("Sem Título", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
         internal static System.Drawing.Bitmap seta_baixo {
             get {
                 object obj = ResourceManager.GetObject("seta_baixo", resourceCulture);

@@ -327,16 +327,23 @@ namespace _22079AI
         public bool RESERVED6 { get; set; } = false;
         public bool RESERVED7 { get; set; } = false;
 
-        public DateTime DT_INSPECTION
-        {
-            get
-            {
-                if (this.UNIX_TIME > 0)
-                    return Diversos.ConvertUnixParaDatetime(this.UNIX_TIME);
-                else
-                    return DateTime.MinValue;
-            }
-        }
+
+        public DateTime DT_INSPECTION { get; set; }
+
+
+        //public DateTime DT_INSPECTION
+        //{
+        //    get
+        //    {
+        //        if (this.UNIX_TIME > 0)
+        //            return Diversos.ConvertUnixParaDatetime(this.UNIX_TIME);
+        //        else
+        //            return DateTime.MinValue;
+        //    }
+
+        //    //set { DT_INSPECTION = value; }
+
+        //}
 
         public HObject INSPECTION_IMAGE { get; set; } = null;
 

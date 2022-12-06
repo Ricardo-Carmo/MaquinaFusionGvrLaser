@@ -76,7 +76,8 @@ namespace _22079AI
             this.WindowControl.HalconWindow.DispText(DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss.fff"), "window", 0, 3, "yellow", "box", "false");
 
             //mostra imagem rodada vinda da inspeção
-            this.WindowControl.HalconWindow.DispImage(imagem.hImage);
+            //this.WindowControl.HalconWindow.DispObject(imagem.hImage);
+            this.WindowControl.HalconWindow.DispObj(imagem.inputImage);
 
             //resultado insepcao
             this.UpdateStatus(this.Inspection.APROVED ? LabelStatus.Ok : this.Inspection.INSPECTION_RESULT == 3 ? LabelStatus.NokOk : LabelStatus.ErroInspecao);

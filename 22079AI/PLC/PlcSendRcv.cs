@@ -28,12 +28,13 @@ namespace _22079AI
 
         //variaveis a serem lidas e escritas para controlo do PLC
         public DiscCom HmiPlcNewDisc = new DiscCom(), HmiPlcFeedbackdisc = new DiscCom(), PlcHmiNewDisc = new DiscCom(), PlcHmiFeedbackdisc = new DiscCom();
-        public Tapetesin StaTapetes = new Tapetesin();
-        public TapetesOut CmdTapetes = new TapetesOut();
+        public Tapetesin StaTapetes = new Tapetesin(), StaRotativo = new Tapetesin();
+        public TapetesOut CmdTapetes = new TapetesOut(), CmdRotativo = new TapetesOut();
         public Vibradoresin StaVibrador = new Vibradoresin();
         public VibradoresOut CmdVibrador = new VibradoresOut();
         public Cicloin StaCiclo = new Cicloin();
         public CicloOut CmdCiclo = new CicloOut();
+        public CicloOut CmdCicloDummy = new CicloOut();
         public Inputs Dis = new Inputs();
         public Outputs Dos = new Outputs();
         public bool HmiNewDiscRead
@@ -58,8 +59,8 @@ namespace _22079AI
         }
         //Variaveis privadas de interface com PLC
         private DiscCom _HmiPlcNewDisc = new DiscCom(), _HmiPlcFeedbackdisc = new DiscCom(), _PlcHmiNewDisc = new DiscCom(), _PlcHmiFeedbackdisc = new DiscCom();
-        private Tapetesin _StaTapetes = new Tapetesin();
-        private TapetesOut _CmdTapetes = new TapetesOut();
+        private Tapetesin _StaTapetes = new Tapetesin(), _StaRotativo = new Tapetesin();
+        private TapetesOut _CmdTapetes = new TapetesOut(), _CmdRotativo = new TapetesOut();
         private Vibradoresin _StaVibrador = new Vibradoresin();
         private VibradoresOut _CmdVibrador = new VibradoresOut();
         private Cicloin _StaCiclo = new Cicloin();
@@ -67,7 +68,7 @@ namespace _22079AI
         private Inputs _Dis = new Inputs();
         private Outputs _Dos = new Outputs();
         private bool SendRequest = new bool();
-        private DateTime LastWriteTime, UpDateHourTick;
+        private DateTime LastWriteTime = new DateTime(), UpDateHourTick = new DateTime();
         private double MinComTime = 1500;
 
         #region ReadWritePlc
@@ -99,25 +100,30 @@ namespace _22079AI
                 _HmiPlcNewDisc.CreatReadList(ArrayIn);
                 _HmiPlcFeedbackdisc.CreatReadList(ArrayIn);
                 _CmdTapetes.CreatReadList(ArrayIn);
+                _CmdRotativo.CreatReadList(ArrayIn);
                 _CmdVibrador.CreatReadList(ArrayIn);
                 _CmdCiclo.CreatReadList(ArrayIn);
+                //CmdCicloDummy.CreatReadList(ArrayIn);
                 //Le chunk de memoria do PLC para a listagem
                 PLC1.LeSequenciaTags(Siemens.MemoryArea.DB, ArrayIn.ToArray(), 401, 0);
                 index = _HmiPlcNewDisc.ReadVariables(ArrayIn, index);
                 index = _HmiPlcFeedbackdisc.ReadVariables(ArrayIn, index);
                 index = _CmdTapetes.ReadVariables(ArrayIn, index);
+                index = _CmdRotativo.ReadVariables(ArrayIn, index);
                 index = _CmdVibrador.ReadVariables(ArrayIn, index);
                 index = _CmdCiclo.ReadVariables(ArrayIn, index);
+                //index = CmdCicloDummy.ReadVariables(ArrayIn, index);
 
                 ArrayIn.Clear();
                 ArrayOut.Clear();
 
                 HmiPlcNewDisc.writeClassValues(_HmiPlcNewDisc.menber);
                 HmiPlcFeedbackdisc.writeClassValues(_HmiPlcFeedbackdisc.menber);
-                CmdTapetes = _CmdTapetes;
-                CmdVibrador = _CmdVibrador;
-                CmdCiclo = _CmdCiclo;
-                CmdCiclo.Vars.DateToPlc = DateTime.Now;
+                CmdTapetes.writeClassValues (_CmdTapetes.Vars);
+                CmdRotativo.writeClassValues( _CmdRotativo.Vars);
+                CmdVibrador.writeClassValues(_CmdVibrador.Vars);
+                CmdCiclo.writeClassValues(_CmdCiclo.Vars);
+                //CmdCiclo.Vars.DateToPlc = DateTime.Now;
                 FirstConetion = true;
 
                 while (FirstConetion)
@@ -136,6 +142,7 @@ namespace _22079AI
                             _PlcHmiNewDisc.CreatReadList(ArrayIn);
                             _PlcHmiFeedbackdisc.CreatReadList(ArrayIn);
                             _StaTapetes.CreatReadList(ArrayIn);
+                            _StaRotativo.CreatReadList(ArrayIn);
                             _StaVibrador.CreatReadList(ArrayIn);
                             _StaCiclo.CreatReadList(ArrayIn);
                             _Dis.CreatReadList(ArrayIn);
@@ -157,6 +164,7 @@ namespace _22079AI
                         index = _PlcHmiNewDisc.ReadVariables(ArrayIn, index);
                         index = _PlcHmiFeedbackdisc.ReadVariables(ArrayIn, index);
                         index = _StaTapetes.ReadVariables(ArrayIn, index);
+                        index = _StaRotativo.ReadVariables(ArrayIn, index);
                         index = _StaVibrador.ReadVariables(ArrayIn, index);
                         index = _StaCiclo.ReadVariables(ArrayIn, index);
                         index = _Dis.ReadVariables(ArrayIn, index);
@@ -181,32 +189,40 @@ namespace _22079AI
                         //SendRequest = (HmiPlcNewDisc..Equals(_HmiPlcNewDisc.menber) && HmiPlcFeedbackdisc.menber.Equals(_HmiPlcFeedbackdisc.menber))
                         //            && CmdTapetes.Vars.Equals(_CmdTapetes.Vars) && CmdVibrador.Vars.Equals(_CmdVibrador.Vars) && CmdCiclo.Vars.Equals(_CmdCiclo.Vars);
 
+                        if ((DateTime.Now - UpDateHourTick).TotalHours > 1)
+                        {
+
+                            CmdCiclo.Vars.DateToPlc = DateTime.Now;
+                            UpDateHourTick = DateTime.Now;
+                        }
 
                         SendRequest = HmiPlcNewDisc.CompareClassEq(_HmiPlcNewDisc.menber) && HmiPlcFeedbackdisc.CompareClassEq(_HmiPlcFeedbackdisc.menber)
-                                    && CmdTapetes.CompareClassEq(_CmdTapetes.Vars) && CmdVibrador.CompareClassEq(_CmdVibrador.Vars) && CmdCiclo.CompareClassEq(_CmdCiclo.Vars);
+                                   && CmdTapetes.CompareClassEq(_CmdTapetes.Vars) && CmdVibrador.CompareClassEq(_CmdVibrador.Vars) && CmdCiclo.CompareClassEq(_CmdCiclo.Vars)
+                                   && CmdRotativo.CompareClassEq(_CmdRotativo.Vars);
 
-                        lock (PublicVarLock) {
-                         if( (DateTime.Now - UpDateHourTick).TotalHours > 1)
-                            {
-                                CmdCiclo.Vars.DateToPlc = DateTime.Now;
-                                UpDateHourTick = DateTime.Now;
-                            }
+                        
+
+                        lock (PublicVarLock)
+                        {
                             
 
-                        _HmiPlcNewDisc.writeClassValues(HmiPlcNewDisc.menber);
-                        _HmiPlcFeedbackdisc.writeClassValues(HmiPlcFeedbackdisc.menber);
-                        _CmdTapetes.writeClassValues(CmdTapetes.Vars);
-                        _CmdVibrador.writeClassValues(CmdVibrador.Vars);
-                        _CmdCiclo.writeClassValues(CmdCiclo.Vars);
+
+                            _HmiPlcNewDisc.writeClassValues(HmiPlcNewDisc.menber);
+                            _HmiPlcFeedbackdisc.writeClassValues(HmiPlcFeedbackdisc.menber);
+                            _CmdTapetes.writeClassValues(CmdTapetes.Vars);
+                            _CmdRotativo.writeClassValues(CmdRotativo.Vars);
+                            _CmdVibrador.writeClassValues(CmdVibrador.Vars);
+                            _CmdCiclo.writeClassValues(CmdCiclo.Vars);
 
 
-                        PlcHmiNewDisc.writeClassValues(_PlcHmiNewDisc.menber);
-                        PlcHmiFeedbackdisc.writeClassValues(_PlcHmiFeedbackdisc.menber);
-                        StaTapetes.writeClassValues(_StaTapetes.Vars);
-                        StaVibrador.writeClassValues(_StaVibrador.Vars);
-                        StaCiclo.writeClassValues(_StaCiclo.Vars);
-                        Dis.writeClassValues(_Dis.Vars);
-                        Dos.writeClassValues(_Dos.Vars);
+                            PlcHmiNewDisc.writeClassValues(_PlcHmiNewDisc.menber);
+                            PlcHmiFeedbackdisc.writeClassValues(_PlcHmiFeedbackdisc.menber);
+                            StaTapetes.writeClassValues(_StaTapetes.Vars);
+                            StaRotativo.writeClassValues(_StaRotativo.Vars);
+                            StaVibrador.writeClassValues(_StaVibrador.Vars);
+                            StaCiclo.writeClassValues(_StaCiclo.Vars);
+                            Dis.writeClassValues(_Dis.Vars);
+                            Dos.writeClassValues(_Dos.Vars);
 
                         }
 
@@ -222,8 +238,10 @@ namespace _22079AI
                                  _HmiPlcNewDisc.WriteVariables(ArrayOut);
                                  _HmiPlcFeedbackdisc.WriteVariables(ArrayOut);
                                  _CmdTapetes.WriteVariables(ArrayOut);
+                                 _CmdRotativo.WriteVariables(ArrayOut);
                                  _CmdVibrador.WriteVariables(ArrayOut);
                                  _CmdCiclo.WriteVariables(ArrayOut);
+                                 //CmdCicloDummy.WriteVariables(ArrayOut);
                                  //Envia chunk de memoria do PLC
                                  PLC1.EnviaSequenciaTagsRT(Siemens.MemoryArea.DB, ArrayOut.ToArray(), 401, 0);
                                  LastWriteTime = DateTime.Now;
@@ -231,7 +249,7 @@ namespace _22079AI
                              }
                             );
                             Send.Wait();
-                            //Thread.Sleep(1);
+                            Thread.Sleep(0);
                         }
                         //Calculo final do tempo de ciclo
                         CycleTime = (DateTime.Now - Startdate).TotalMilliseconds;
@@ -265,10 +283,10 @@ namespace _22079AI
         public double PulseEncoderS2;
         public double PulseExpel;
         public double DelayExpel;
-        public DateTime EntradaS1;
-        public DateTime InicioInspecao;
-        public DateTime FinalInspecao;
-        public DateTime SaidaS2;
+        public DateTime EntradaS1 ;
+        public DateTime InicioInspecao ;
+        public DateTime FinalInspecao ;
+        public DateTime SaidaS2 ;
         public short result;
         public short reserved_0;
         public short reserved_1;
@@ -893,8 +911,7 @@ namespace _22079AI
             byte auxbyte = new byte();
             auxbyte = PLC.Siemens.BitsToByte(Vars.Enabled, Vars.Running, Vars.Fault, Vars.Reserved_1, Vars.Reserved_2, Vars.Reserved_3, Vars.Reserved_4, Vars.Reserved_5);
             buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, auxbyte, 0));
-            auxbyte = Vars.Reserved_6;
-            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, auxbyte, 0));
+            buffer.Add(new PLC.Siemens.WriteMultiVariables(Siemens.TipoVariavel.Byte, Vars.Reserved_6, 0));
         }
         public int ReadVariables(List<PLC.Siemens.ReadMultiVariables> buffer, int index)
         {
@@ -1097,7 +1114,7 @@ namespace _22079AI
             byte auxByte;
             int bit;
 
-
+            index = index + 1;
             bit = 0;
             auxByte = (buffer[index].ObtemVariavel());
             Vars.InManual = (auxByte & Mask[bit]) != 0;
@@ -1116,7 +1133,7 @@ namespace _22079AI
             bit = bit + 1;
             Vars.EmergencyOk = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            index = index + 1;
+            index = index - 1;
             bit = 0;
             auxByte = (buffer[index].ObtemVariavel());
             Vars.Reserved_5 = (auxByte & Mask[bit]) != 0;
@@ -1134,7 +1151,7 @@ namespace _22079AI
             Vars.Reserved_11 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
             Vars.Reserved_12 = (auxByte & Mask[bit]) != 0;
-            index = index + 1;
+            index = index + 2;
             Vars.Reserved_13 = (buffer[index].ObtemVariavel());
             index = index + 1;
             Vars.Reserved_14 = (buffer[index].ObtemVariavel());
@@ -1243,7 +1260,7 @@ namespace _22079AI
             byte auxByte;
             int bit;
 
-
+            index = index + 1;
             bit = 0;
             auxByte = (buffer[index].ObtemVariavel());
             Vars.ManualRequest = (auxByte & Mask[bit]) != 0;
@@ -1262,7 +1279,7 @@ namespace _22079AI
             bit = bit + 1;
             Vars.Reserved_3 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
-            index = index + 1;
+            index = index - 1;
             bit = 0;
             auxByte = (buffer[index].ObtemVariavel());
             Vars.Reserved_4 = (auxByte & Mask[bit]) != 0;
@@ -1280,7 +1297,7 @@ namespace _22079AI
             Vars.Reserved_10 = (auxByte & Mask[bit]) != 0;
             bit = bit + 1;
             Vars.Reserved_11 = (auxByte & Mask[bit]) != 0;
-            index = index + 1;
+            index = index + 2;
             Vars.DateToPlc = (buffer[index].ObtemVariavel());
             index = index + 1;
             Vars.NivelSessao = (buffer[index].ObtemVariavel());
@@ -1340,5 +1357,4 @@ namespace _22079AI
 
     }
     #endregion
-
 }

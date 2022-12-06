@@ -139,6 +139,9 @@
   <data name="imagem_nao_disponivel" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Imagens\imagem-nao-disponivel.jpg;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
+  <data name="_1481324820_circle_green" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Imagens\1481324820_circle_green.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
   <data name="_1471369787_cancel_48" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resources\1471369787_cancel_48.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
@@ -151,13 +154,13 @@
   <data name="STREAK_LOGO_GERAL_V0_SMALL" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Resources\STREAK_LOGO_GERAL_V0_SMALL.ico;System.Drawing.Icon, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  <data name="seta_esq" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\Imagens\seta_esq.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
-  </data>
   <data name="_1481324811_circle_red" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Imagens\1481324811_circle_red.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
-  <data name="_1481324820_circle_green" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>..\Imagens\1481324820_circle_green.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  <data name="seta_esq" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Imagens\seta_esq.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
+  </data>
+  <data name="Sem Título" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Resources\Sem Título.png;System.Drawing.Bitmap, System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a</value>
   </data>
 </root>
