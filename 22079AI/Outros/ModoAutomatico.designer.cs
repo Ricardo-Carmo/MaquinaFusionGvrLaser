@@ -385,9 +385,10 @@
             // 
             // label28
             // 
+            this.label28.BackColor = System.Drawing.SystemColors.MenuHighlight;
             this.label28.Dock = System.Windows.Forms.DockStyle.Fill;
             this.label28.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold);
-            this.label28.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(51)))), ((int)(((byte)(51)))), ((int)(((byte)(153)))));
+            this.label28.ForeColor = System.Drawing.Color.White;
             this.label28.Location = new System.Drawing.Point(10, 0);
             this.label28.Name = "label28";
             this.label28.Size = new System.Drawing.Size(419, 35);
@@ -400,6 +401,7 @@
             // 
             // panel2
             // 
+            this.panel2.BackColor = System.Drawing.SystemColors.MenuHighlight;
             this.panel2.Dock = System.Windows.Forms.DockStyle.Left;
             this.panel2.Location = new System.Drawing.Point(0, 0);
             this.panel2.Name = "panel2";
@@ -408,6 +410,7 @@
             // 
             // btnSair
             // 
+            this.btnSair.BackColor = System.Drawing.SystemColors.MenuHighlight;
             this.btnSair.Dock = System.Windows.Forms.DockStyle.Right;
             this.btnSair.Image = ((System.Drawing.Image)(resources.GetObject("btnSair.Image")));
             this.btnSair.Location = new System.Drawing.Point(429, 0);

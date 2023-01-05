@@ -139,7 +139,7 @@ namespace _22079AI
             new Thread(ThreadCheckDbConnection).Start();
 
             //Faz o fifo de alarmes
-            new Thread(ThreadFifoAlarmes).Start();
+            //new Thread(ThreadFifoAlarmes).Start();
         }
 
         private void ThreadFifoAlarmes()

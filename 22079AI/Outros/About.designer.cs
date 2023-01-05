@@ -225,6 +225,7 @@
             // 
             // pictureBox2
             // 
+            this.pictureBox2.BackColor = System.Drawing.SystemColors.MenuHighlight;
             this.pictureBox2.Dock = System.Windows.Forms.DockStyle.Left;
             this.pictureBox2.Image = ((System.Drawing.Image)(resources.GetObject("pictureBox2.Image")));
             this.pictureBox2.Location = new System.Drawing.Point(7, 0);
@@ -237,6 +238,7 @@
             // 
             // panel99
             // 
+            this.panel99.BackColor = System.Drawing.SystemColors.MenuHighlight;
             this.panel99.Dock = System.Windows.Forms.DockStyle.Left;
             this.panel99.Location = new System.Drawing.Point(0, 0);
             this.panel99.Name = "panel99";
@@ -256,6 +258,7 @@
             // 
             // lblHeader
             // 
+            this.lblHeader.BackColor = System.Drawing.SystemColors.MenuHighlight;
             this.lblHeader.Dock = System.Windows.Forms.DockStyle.Fill;
             this.lblHeader.Font = new System.Drawing.Font("Cambria", 14.25F, System.Drawing.FontStyle.Bold);
             this.lblHeader.Location = new System.Drawing.Point(0, 0);

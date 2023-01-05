@@ -87,7 +87,7 @@ namespace _22079AI
             if (imagemInspecao.outputImage != null)
             {
                 //this.WindowControl.ImagePart = new Rectangle(0, 0, comprimento, altura);
-                this.WindowControl.HalconWindow.SetPart(0, 0, 200, 808);
+                this.WindowControl.HalconWindow.SetPart(0, 0, 100, 664);
                 //this.Display.SetPart(0, 0, -2, -2);
                 this.Display.DispObj(imagemInspecao.outputImage);
                 //this.WindowControl.HalconWindow.SetPart(0, 0, comprimento, altura);

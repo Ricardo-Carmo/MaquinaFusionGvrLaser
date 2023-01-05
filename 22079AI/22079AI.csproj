@@ -40,7 +40,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <Prefer32Bit>false</Prefer32Bit>
-    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -76,11 +76,13 @@
     <ApplicationIcon>STREAK_LOGO_GERAL_V0_SMALL.ico</ApplicationIcon>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
-    <PlatformTarget>x86</PlatformTarget>
+    <PlatformTarget>x64</PlatformTarget>
     <OutputPath>bin\x64\Debug\</OutputPath>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Optimize>false</Optimize>
     <Prefer32Bit>false</Prefer32Bit>
+    <DebugType>full</DebugType>
+    <DefineConstants>DEBUG</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
     <PlatformTarget>x64</PlatformTarget>
@@ -99,16 +101,12 @@
       <HintPath>..\..\..\Program Files\MVTec\HALCON-20.11-Steady\bin\dotnet35\hdevenginedotnet.dll</HintPath>
     </Reference>
     <Reference Include="MetroFramework">
-      <HintPath>bin\Debug\MetroFramework.dll</HintPath>
-    </Reference>
-    <Reference Include="MfgControl.AdvancedHMI.Controls">
-      <HintPath>C:\Users\OpenCV\Desktop\15002AI\15002AI\bin\Debug\MfgControl.AdvancedHMI.Controls.dll</HintPath>
+      <HintPath>Referencias\MetroFramework.dll</HintPath>
     </Reference>
     <Reference Include="Microsoft.VisualBasic" />
     <Reference Include="Microsoft.VisualBasic.PowerPacks, Version=9.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL" />
-    <Reference Include="PolyMonControls, Version=1.1.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>bin\Debug\PolyMonControls.dll</HintPath>
+    <Reference Include="PolyMonControls">
+      <HintPath>Referencias\PolyMonControls.dll</HintPath>
     </Reference>
     <Reference Include="PresentationFramework" />
     <Reference Include="System" />
@@ -361,15 +359,8 @@
     <None Include="Imagens\iconfinder_arrow_sans_up_103304.png" />
     <None Include="Imagens\1481324811_circle_red.png" />
     <None Include="Imagens\1481324820_circle_green.png" />
-    <Content Include="Imagens\imagem maquina.png" />
-    <Content Include="Imagens\img01.bmp" />
-    <Content Include="Imagens\img02.bmp" />
-    <Content Include="Imagens\img03.bmp" />
-    <Content Include="Imagens\img04.bmp" />
-    <None Include="Imagens\ivo.PNG" />
     <None Include="Imagens\IMG_MANUAL.png" />
     <None Include="Imagens\IMG_AUTO.png" />
-    <Content Include="Imagens\pallete.bmp" />
     <None Include="Imagens\seta_dir.png" />
     <None Include="Imagens\seta_esq.png" />
     <None Include="Resources\Sem Título.png" />

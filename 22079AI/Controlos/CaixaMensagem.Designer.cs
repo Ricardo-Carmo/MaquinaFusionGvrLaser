@@ -117,7 +117,7 @@
             // 
             // lblHeader
             // 
-            this.lblHeader.BackColor = System.Drawing.Color.MidnightBlue;
+            this.lblHeader.BackColor = System.Drawing.SystemColors.MenuHighlight;
             this.lblHeader.Dock = System.Windows.Forms.DockStyle.Top;
             this.lblHeader.Font = new System.Drawing.Font("Cambria", 12F, System.Drawing.FontStyle.Bold);
             this.lblHeader.ForeColor = System.Drawing.Color.White;

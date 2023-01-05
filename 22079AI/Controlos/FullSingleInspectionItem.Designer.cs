@@ -30,7 +30,6 @@
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FullSingleInspectionItem));
             this.panel1 = new System.Windows.Forms.Panel();
-            this.groupBox1 = new System.Windows.Forms.GroupBox();
             this.lblId = new System.Windows.Forms.Label();
             this.lblError = new System.Windows.Forms.Label();
             this.WindowControl = new HalconDotNet.HWindowControl();
@@ -50,30 +49,19 @@
             // panel1
             // 
             this.panel1.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.panel1.Controls.Add(this.groupBox1);
             this.panel1.Controls.Add(this.lblId);
             this.panel1.Controls.Add(this.lblError);
-            this.panel1.Controls.Add(this.WindowControl);
             this.panel1.Controls.Add(this.panel6);
             this.panel1.Controls.Add(this.panel5);
             this.panel1.Controls.Add(this.panel4);
             this.panel1.Controls.Add(this.panel3);
             this.panel1.Controls.Add(this.panel56);
+            this.panel1.Controls.Add(this.WindowControl);
             this.panel1.Dock = System.Windows.Forms.DockStyle.Fill;
             this.panel1.Location = new System.Drawing.Point(0, 0);
             this.panel1.Name = "panel1";
-            this.panel1.Size = new System.Drawing.Size(1208, 766);
+            this.panel1.Size = new System.Drawing.Size(1476, 270);
             this.panel1.TabIndex = 0;
-            // 
-            // groupBox1
-            // 
-            this.groupBox1.Dock = System.Windows.Forms.DockStyle.Top;
-            this.groupBox1.Location = new System.Drawing.Point(10, 671);
-            this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(1186, 79);
-            this.groupBox1.TabIndex = 87;
-            this.groupBox1.TabStop = false;
-            this.groupBox1.Text = "groupBox1";
             // 
             // lblId
             // 
@@ -81,7 +69,7 @@
             this.lblId.BackColor = System.Drawing.Color.Black;
             this.lblId.Font = new System.Drawing.Font("Tahoma", 14.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lblId.ForeColor = System.Drawing.Color.Red;
-            this.lblId.Location = new System.Drawing.Point(12, 623);
+            this.lblId.Location = new System.Drawing.Point(10, 212);
             this.lblId.Name = "lblId";
             this.lblId.Size = new System.Drawing.Size(34, 23);
             this.lblId.TabIndex = 85;
@@ -90,34 +78,34 @@
             // lblError
             // 
             this.lblError.BackColor = System.Drawing.Color.Black;
-            this.lblError.Dock = System.Windows.Forms.DockStyle.Top;
+            this.lblError.Dock = System.Windows.Forms.DockStyle.Bottom;
             this.lblError.Font = new System.Drawing.Font("Tahoma", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lblError.ForeColor = System.Drawing.Color.Red;
-            this.lblError.Location = new System.Drawing.Point(10, 648);
+            this.lblError.Location = new System.Drawing.Point(10, 235);
             this.lblError.Name = "lblError";
-            this.lblError.Size = new System.Drawing.Size(1186, 23);
+            this.lblError.Size = new System.Drawing.Size(1454, 23);
             this.lblError.TabIndex = 86;
             this.lblError.Visible = false;
             this.lblError.TextChanged += new System.EventHandler(this.LblError_TextChanged);
             // 
             // WindowControl
             // 
-            this.WindowControl.BackColor = System.Drawing.Color.Black;
-            this.WindowControl.BorderColor = System.Drawing.Color.Black;
-            this.WindowControl.Dock = System.Windows.Forms.DockStyle.Top;
-            this.WindowControl.ImagePart = new System.Drawing.Rectangle(0, 0, 4912, 3684);
-            this.WindowControl.Location = new System.Drawing.Point(10, 45);
+            this.WindowControl.BackColor = System.Drawing.Color.DimGray;
+            this.WindowControl.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Center;
+            this.WindowControl.BorderColor = System.Drawing.Color.DimGray;
+            this.WindowControl.ImagePart = new System.Drawing.Rectangle(0, 0, 1186, 190);
+            this.WindowControl.Location = new System.Drawing.Point(10, 41);
             this.WindowControl.Name = "WindowControl";
-            this.WindowControl.Size = new System.Drawing.Size(1186, 603);
+            this.WindowControl.Size = new System.Drawing.Size(1454, 194);
             this.WindowControl.TabIndex = 88;
-            this.WindowControl.WindowSize = new System.Drawing.Size(1186, 603);
+            this.WindowControl.WindowSize = new System.Drawing.Size(1454, 194);
             // 
             // panel6
             // 
             this.panel6.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.panel6.Location = new System.Drawing.Point(10, 754);
+            this.panel6.Location = new System.Drawing.Point(10, 258);
             this.panel6.Name = "panel6";
-            this.panel6.Size = new System.Drawing.Size(1186, 10);
+            this.panel6.Size = new System.Drawing.Size(1454, 10);
             this.panel6.TabIndex = 83;
             // 
             // panel5
@@ -125,15 +113,15 @@
             this.panel5.Dock = System.Windows.Forms.DockStyle.Top;
             this.panel5.Location = new System.Drawing.Point(10, 35);
             this.panel5.Name = "panel5";
-            this.panel5.Size = new System.Drawing.Size(1186, 10);
+            this.panel5.Size = new System.Drawing.Size(1454, 10);
             this.panel5.TabIndex = 82;
             // 
             // panel4
             // 
             this.panel4.Dock = System.Windows.Forms.DockStyle.Right;
-            this.panel4.Location = new System.Drawing.Point(1196, 35);
+            this.panel4.Location = new System.Drawing.Point(1464, 35);
             this.panel4.Name = "panel4";
-            this.panel4.Size = new System.Drawing.Size(10, 729);
+            this.panel4.Size = new System.Drawing.Size(10, 233);
             this.panel4.TabIndex = 81;
             // 
             // panel3
@@ -141,7 +129,7 @@
             this.panel3.Dock = System.Windows.Forms.DockStyle.Left;
             this.panel3.Location = new System.Drawing.Point(0, 35);
             this.panel3.Name = "panel3";
-            this.panel3.Size = new System.Drawing.Size(10, 729);
+            this.panel3.Size = new System.Drawing.Size(10, 233);
             this.panel3.TabIndex = 80;
             // 
             // panel56
@@ -153,7 +141,7 @@
             this.panel56.Dock = System.Windows.Forms.DockStyle.Top;
             this.panel56.Location = new System.Drawing.Point(0, 0);
             this.panel56.Name = "panel56";
-            this.panel56.Size = new System.Drawing.Size(1206, 35);
+            this.panel56.Size = new System.Drawing.Size(1474, 35);
             this.panel56.TabIndex = 79;
             // 
             // label28
@@ -163,7 +151,7 @@
             this.label28.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(51)))), ((int)(((byte)(51)))), ((int)(((byte)(153)))));
             this.label28.Location = new System.Drawing.Point(10, 0);
             this.label28.Name = "label28";
-            this.label28.Size = new System.Drawing.Size(1161, 35);
+            this.label28.Size = new System.Drawing.Size(1429, 35);
             this.label28.TabIndex = 80;
             this.label28.Text = "Detalhes de Inspeção [n]";
             this.label28.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
@@ -180,7 +168,7 @@
             // 
             this.btnSair.Dock = System.Windows.Forms.DockStyle.Right;
             this.btnSair.Image = ((System.Drawing.Image)(resources.GetObject("btnSair.Image")));
-            this.btnSair.Location = new System.Drawing.Point(1171, 0);
+            this.btnSair.Location = new System.Drawing.Point(1439, 0);
             this.btnSair.Name = "btnSair";
             this.btnSair.Size = new System.Drawing.Size(35, 35);
             this.btnSair.TabIndex = 68;
@@ -192,12 +180,11 @@
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(51)))), ((int)(((byte)(51)))), ((int)(((byte)(51)))));
-            this.ClientSize = new System.Drawing.Size(1208, 766);
+            this.ClientSize = new System.Drawing.Size(1476, 270);
             this.Controls.Add(this.panel1);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
-            this.Location = new System.Drawing.Point(703, 102);
             this.Name = "FullSingleInspectionItem";
-            this.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "FullSingleInspectionItem";
             this.TopMost = true;
             this.Deactivate += new System.EventHandler(this.FullSingleInspectionItem_Deactivate);
@@ -225,7 +212,6 @@
         private System.Windows.Forms.Panel panel3;
         private System.Windows.Forms.Label lblId;
         private System.Windows.Forms.Label lblError;
-        private System.Windows.Forms.GroupBox groupBox1;
         public HalconDotNet.HWindowControl WindowControl;
     }
 }

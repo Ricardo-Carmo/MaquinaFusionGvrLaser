@@ -50,6 +50,8 @@ namespace _22079AI
             this.Inspection.RESERVED6 = data.RESERVED6;
             this.Inspection.RESERVED7 = data.RESERVED7;
 
+            HObject imageAux = imagem.outputImage;
+
             lblId.Text = this.Inspection.ID.ToString();
 
             label28.Text = this.label28.Text.Replace("[n]", "[" + lblId.Text + "]");
@@ -69,15 +71,13 @@ namespace _22079AI
 
             lblError.Text = strError;
 
-
             //limpa a janela
-            this.WindowControl.HalconWindow.ClearWindow();
-
+            //this.WindowControl.HalconWindow.ClearWindow();
+            
+            this.WindowControl.HalconWindow.SetPart(0, 0, 100, 664);
             this.WindowControl.HalconWindow.DispText(DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss.fff"), "window", 0, 3, "yellow", "box", "false");
 
-            //mostra imagem rodada vinda da inspeção
-            //this.WindowControl.HalconWindow.DispObject(imagem.hImage);
-            this.WindowControl.HalconWindow.DispObj(imagem.inputImage);
+            this.WindowControl.HalconWindow.DispObj(imageAux);
 
             //resultado insepcao
             this.UpdateStatus(this.Inspection.APROVED ? LabelStatus.Ok : this.Inspection.INSPECTION_RESULT == 3 ? LabelStatus.NokOk : LabelStatus.ErroInspecao);

@@ -294,6 +294,8 @@ namespace _22079AI
 
         public int UNIX_TIME { get; set; } = 0;
 
+        public string MsgErro { get; set; } = "";
+
         public double COMPRIMENTO { get; set; } = 0;
 
         public double AMPLITUDE_DESVIO_SUPERIOR { get; set; } = 0;

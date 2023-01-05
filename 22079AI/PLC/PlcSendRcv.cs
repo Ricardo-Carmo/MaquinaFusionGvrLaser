@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Threading;
 using System.Diagnostics;
 using System.Runtime.InteropServices.WindowsRuntime;
+using System.Windows.Forms;
 
 namespace _22079AI
 {
@@ -21,6 +22,7 @@ namespace _22079AI
         public double CycleTime, leituras, escritas, criacaolistagem1, criacaolistagem2;
         public DateTime Startdate, auxdt;
         private readonly object PublicVarLock = new object();
+        
 
         private bool isAlive = true;
 
@@ -37,10 +39,12 @@ namespace _22079AI
         public CicloOut CmdCicloDummy = new CicloOut();
         public Inputs Dis = new Inputs();
         public Outputs Dos = new Outputs();
+        public AlarmesIn PlcAlarmes = new AlarmesIn();
         public bool HmiNewDiscRead
         {
             get
             {
+                
                 return (HmiPlcFeedbackdisc.menber.ID != PlcHmiNewDisc.menber.ID);
             }
             set
@@ -53,6 +57,7 @@ namespace _22079AI
         {
             get
             {
+                
                 return (HmiPlcNewDisc.menber.ID == PlcHmiFeedbackdisc.menber.ID);
             }
             set { }
@@ -147,12 +152,13 @@ namespace _22079AI
                             _StaCiclo.CreatReadList(ArrayIn);
                             _Dis.CreatReadList(ArrayIn);
                             _Dos.CreatReadList(ArrayIn);
+                            PlcAlarmes.CreatReadList(ArrayIn);
                             //Le chunk de memoria do PLC para a listagem
                             PLC1.LeSequenciaTags(Siemens.MemoryArea.DB, ArrayIn.ToArray(), 400, 0);
                         }
                         );
                         //Thread.Sleep(1);
-                        Recieve.Wait();
+                       Recieve.Wait();
 
                         //Calculo final do tempo de ciclo
                         leituras = (DateTime.Now - Startdate).TotalMilliseconds;
@@ -169,6 +175,7 @@ namespace _22079AI
                         index = _StaCiclo.ReadVariables(ArrayIn, index);
                         index = _Dis.ReadVariables(ArrayIn, index);
                         index = _Dos.ReadVariables(ArrayIn, index);
+                        index = PlcAlarmes.ReadVariables(ArrayIn, index);
 
                         // HmiPlcNewDisc.ID = HmiPlcNewDisc.ID + 1;
                         //if (HmiPlcNewDisc.ID > 100)
@@ -189,12 +196,11 @@ namespace _22079AI
                         //SendRequest = (HmiPlcNewDisc..Equals(_HmiPlcNewDisc.menber) && HmiPlcFeedbackdisc.menber.Equals(_HmiPlcFeedbackdisc.menber))
                         //            && CmdTapetes.Vars.Equals(_CmdTapetes.Vars) && CmdVibrador.Vars.Equals(_CmdVibrador.Vars) && CmdCiclo.Vars.Equals(_CmdCiclo.Vars);
 
-                        if ((DateTime.Now - UpDateHourTick).TotalHours > 1)
-                        {
-
-                            CmdCiclo.Vars.DateToPlc = DateTime.Now;
-                            UpDateHourTick = DateTime.Now;
-                        }
+                       // if ((DateTime.Now - UpDateHourTick).TotalHours > 1)
+                      //  {
+                       ///     CmdCiclo.Vars.DateToPlc = DateTime.Now;
+                       //    UpDateHourTick = DateTime.Now;
+                       // }
 
                         SendRequest = HmiPlcNewDisc.CompareClassEq(_HmiPlcNewDisc.menber) && HmiPlcFeedbackdisc.CompareClassEq(_HmiPlcFeedbackdisc.menber)
                                    && CmdTapetes.CompareClassEq(_CmdTapetes.Vars) && CmdVibrador.CompareClassEq(_CmdVibrador.Vars) && CmdCiclo.CompareClassEq(_CmdCiclo.Vars)
@@ -230,7 +236,7 @@ namespace _22079AI
                         //}
 
                         if (!(SendRequest))
-                        {
+                            {
                             Task Send = Task.Run(() =>
                              {
                                  //multiplexa listagens de saida de variaveis
@@ -248,12 +254,15 @@ namespace _22079AI
                                  //desmultiplexa listagens de entrada em variaveis de utilizador
                              }
                             );
-                            Send.Wait();
-                            Thread.Sleep(0);
+                           Send.Wait();
+                            
                         }
                         //Calculo final do tempo de ciclo
                         CycleTime = (DateTime.Now - Startdate).TotalMilliseconds;
-                        //Debug.WriteLine("TempoComPlc: " + CycleTime);
+                        //if (CycleTime < 40)
+                           // Thread.Sleep(40 - (int)CycleTime);
+
+                        //Debug.WriteLine("TempoComPlc: " + (DateTime.Now - Startdate).TotalMilliseconds);
                     }
                     catch
                     {
@@ -262,8 +271,6 @@ namespace _22079AI
                 }
             }
         }
-
-
         public void Dispose()
         {
             isAlive = false;
@@ -1206,6 +1213,50 @@ namespace _22079AI
             return comp1;
 
         }
+    }
+    public class AlarmesIn
+    {
+        public class variables
+        {
+            public bool[] Alarmes = new bool[128];
+            public static int SizeAlm = 16;
+        }
+        public variables Vars = new variables();
+        public void CreatReadList(List<PLC.Siemens.ReadMultiVariables> buffer)
+        {
+            for (int i = 0; i < variables.SizeAlm; i++)
+            buffer.Add(new PLC.Siemens.ReadMultiVariables(Siemens.TipoVariavel.Byte, 0));
+
+        }
+        public int ReadVariables(List<PLC.Siemens.ReadMultiVariables> buffer, int index)
+        {
+            byte[] Mask = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 };
+            byte auxByte;
+
+            for (int i = 0; i < variables.SizeAlm; i++) { 
+                auxByte = (buffer[index].ObtemVariavel());
+                index = index + 1;
+                for (int k = 0; k < 8; k++)
+                {
+                    Vars.Alarmes[k + (8 * i)] = (auxByte & Mask[k]) != 0;
+                }
+            }
+
+            //                            for (int k = 0; k < 8; k++)
+            //                                VARIAVEIS.Alarmes[k + (8 * i)] = (Convert.ToBoolean(DB400_HMI[i].ObtemVariavel(k)));
+
+            //                            indexAuxI++;
+            //                            for (int k = 0; k < 8; k++)
+            //                                VARIAVEIS.Alarmes[k + (8 * i)] = (Convert.ToBoolean(DB400_HMI[i].ObtemVariavel(k)));
+
+            //                            indexAuxI++;
+            //                        }
+
+
+            return index;
+        }
+        
+
     }
 
     public class CicloOut
